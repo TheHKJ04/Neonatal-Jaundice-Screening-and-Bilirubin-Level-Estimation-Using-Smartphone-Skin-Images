@@ -1,165 +1,111 @@
 """
-Verify the NeoJaundice repository structure.
-
-This script checks that required project directories
-and Python package initializers exist.
-
-Usage:
-    python scripts/verify_structure.py
+Unit tests for NeoJaundice project structure.
 """
 
+import sys
+import unittest
+
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
+sys.path.insert(0, str(PROJECT_ROOT))
 
-REQUIRED_DIRECTORIES = (
-    ".github/workflows",
-    "backend/app",
-    "backend/app/api",
-    "backend/app/core",
-    "backend/app/models",
-    "backend/app/repositories",
-    "backend/app/schemas",
-    "backend/app/services",
-    "backend/app/utils",
-    "backend/tests",
-    "configs/data",
-    "configs/deployment",
-    "configs/inference",
-    "configs/model",
-    "configs/training",
-    "data/external",
-    "data/interim",
-    "data/processed",
-    "data/raw",
-    "docker",
-    "docs",
-    "experiments",
-    "frontend/src/components",
-    "frontend/src/hooks",
-    "frontend/src/pages",
-    "frontend/src/services",
-    "frontend/src/types",
-    "logs",
-    "ml",
-    "ml/datasets",
-    "ml/evaluation",
-    "ml/explainability",
-    "ml/features",
-    "ml/inference",
-    "ml/preprocessing",
-    "ml/roi",
-    "ml/training",
-    "mlflow",
-    "models/baseline",
-    "models/efficientnet",
-    "models/multimodal",
-    "models/onnx",
-    "models/registry",
-    "notebooks",
-    "scripts",
-    "tests/api",
-    "tests/integration",
-    "tests/model",
-    "tests/unit",
+from scripts.verify_structure import (  # noqa: E402
+    REQUIRED_DIRECTORIES,
+    PYTHON_PACKAGES,
+    verify_directories,
+    verify_python_packages,
+    verify_structure,
 )
 
 
-PYTHON_PACKAGES = (
-    "backend/app",
-    "backend/app/api",
-    "backend/app/core",
-    "backend/app/models",
-    "backend/app/repositories",
-    "backend/app/schemas",
-    "backend/app/services",
-    "backend/app/utils",
-    "ml",
-    "ml/datasets",
-    "ml/evaluation",
-    "ml/explainability",
-    "ml/features",
-    "ml/inference",
-    "ml/preprocessing",
-    "ml/roi",
-    "ml/training",
-)
+class TestProjectStructure(unittest.TestCase):
 
+    def test_actual_project_structure(self):
+        """Verify the real project structure."""
 
-def verify_directories(root: Path) -> list[str]:
-    """Return missing required directories."""
+        result = verify_structure(PROJECT_ROOT)
 
-    missing = []
+        self.assertEqual(
+            result["missing_directories"],
+            [],
+        )
 
-    for directory in REQUIRED_DIRECTORIES:
-        path = root / directory
+        self.assertEqual(
+            result["missing_initializers"],
+            [],
+        )
 
-        if not path.is_dir():
-            missing.append(directory)
+    def test_missing_directories_detected(self):
+        """Verify missing directories are detected."""
 
-    return missing
+        with TemporaryDirectory() as temp_dir:
 
+            root = Path(temp_dir)
 
-def verify_python_packages(root: Path) -> list[str]:
-    """Return packages missing their initializer."""
+            missing = verify_directories(root)
 
-    missing = []
+            self.assertEqual(
+                len(missing),
+                len(REQUIRED_DIRECTORIES),
+            )
 
-    for package in PYTHON_PACKAGES:
-        initializer = root / package / "__init__.py"
+    def test_missing_initializers_detected(self):
+        """Verify missing package initializers are detected."""
 
-        if not initializer.is_file():
-            missing.append(str(initializer.relative_to(root)))
+        with TemporaryDirectory() as temp_dir:
 
-    return missing
+            root = Path(temp_dir)
 
+            missing = verify_python_packages(root)
 
-def verify_structure(root: Path) -> dict[str, list[str]]:
-    """Validate the repository structure."""
+            self.assertEqual(
+                len(missing),
+                len(PYTHON_PACKAGES),
+            )
 
-    return {
-        "missing_directories": verify_directories(root),
-        "missing_initializers": verify_python_packages(root),
-    }
+    def test_valid_temporary_structure(self):
+        """Verify a complete structure passes validation."""
 
+        with TemporaryDirectory() as temp_dir:
 
-def main() -> int:
-    """Run verification and return an exit code."""
+            root = Path(temp_dir)
 
-    print("=" * 50)
-    print("NeoJaundice Project Structure Verification")
-    print("=" * 50)
+            for directory in REQUIRED_DIRECTORIES:
 
-    results = verify_structure(PROJECT_ROOT)
+                (root / directory).mkdir(
+                    parents=True,
+                    exist_ok=True,
+                )
 
-    missing_directories = results["missing_directories"]
-    missing_initializers = results["missing_initializers"]
+            for package in PYTHON_PACKAGES:
 
-    if missing_directories:
-        print("\nMissing directories:")
+                initializer = (
+                    root / package / "__init__.py"
+                )
 
-        for directory in missing_directories:
-            print(f"  [MISSING] {directory}")
+                initializer.parent.mkdir(
+                    parents=True,
+                    exist_ok=True,
+                )
 
-    if missing_initializers:
-        print("\nMissing Python package initializers:")
+                initializer.touch()
 
-        for initializer in missing_initializers:
-            print(f"  [MISSING] {initializer}")
+            result = verify_structure(root)
 
-    if missing_directories or missing_initializers:
-        print("\n[FAILED] Repository structure is incomplete.")
-        return 1
+            self.assertEqual(
+                result["missing_directories"],
+                [],
+            )
 
-    print(f"\nVerified directories: {len(REQUIRED_DIRECTORIES)}")
-    print(f"Verified Python packages: {len(PYTHON_PACKAGES)}")
-
-    print("\n[PASSED] Repository structure is valid.")
-
-    return 0
+            self.assertEqual(
+                result["missing_initializers"],
+                [],
+            )
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    unittest.main()
