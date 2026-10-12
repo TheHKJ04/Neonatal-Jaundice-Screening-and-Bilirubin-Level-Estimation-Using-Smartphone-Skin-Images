@@ -1,0 +1,164 @@
+# NeoJaundice
+
+## Neonatal Jaundice Screening and Bilirubin Level Estimation Using Smartphone Skin Images
+
+NeoJaundice is a research-oriented computer vision and machine
+learning project investigating neonatal jaundice screening and
+bilirubin level estimation from smartphone skin images.
+
+The project aims to develop a modular AI system with reproducible
+machine learning experiments, explainability, backend APIs,
+a frontend application, and MLOps infrastructure.
+
+## Project Status
+
+Current Phase: Phase 1 - Project Setup
+
+Status: Under Development
+
+No clinically validated prediction model is currently available.
+
+## Intended Capabilities
+
+- Smartphone image validation
+- Facial region-of-interest extraction
+- Skin segmentation
+- Image preprocessing
+- Color feature extraction
+- Jaundice screening research
+- Bilirubin regression research
+- EfficientNet-based deep learning
+- GradCAM explainability
+- FastAPI inference API
+- React frontend
+- PostgreSQL integration
+- Docker deployment
+- MLflow experiment tracking
+- DVC dataset versioning
+- Automated testing and CI/CD
+- Model monitoring
+- ONNX model export
+
+## Technology Stack
+
+### Machine Learning
+
+- Python
+- PyTorch
+- OpenCV
+- MediaPipe
+- Albumentations
+- NumPy
+- Pandas
+
+### Backend
+
+- FastAPI
+- SQLAlchemy
+- PostgreSQL
+- Alembic
+
+### Frontend
+
+- React
+- TypeScript
+- Tailwind CSS
+
+### MLOps
+
+- Docker
+- Docker Compose
+- MLflow
+- DVC
+- GitHub Actions
+
+### Monitoring
+
+- Prometheus
+- Grafana
+
+## Architecture
+
+The planned image processing pipeline is:
+
+Smartphone Image
+→ Image Validation
+→ ROI Extraction
+→ Skin Segmentation
+→ Color Correction
+→ Feature Extraction
+→ EfficientNet
+→ Classification and Regression
+→ Explainability
+→ FastAPI
+→ React Frontend
+
+See docs/architecture.md when implementation documentation
+becomes available.
+
+## Repository Structure
+
+- backend/ : Backend application
+- frontend/ : User interface
+- ml/ : Machine learning pipelines
+- data/ : Dataset organization
+- models/ : Model artifacts
+- configs/ : Configuration files
+- tests/ : Automated tests
+- notebooks/ : Research notebooks
+- experiments/ : Experiment outputs
+- docs/ : Documentation
+- docker/ : Container configuration
+- scripts/ : Utility scripts
+
+## Development Roadmap
+
+1. Project setup
+2. Dataset engineering
+3. Exploratory data analysis
+4. Image preprocessing
+5. ROI extraction
+6. Feature engineering
+7. Baseline models
+8. EfficientNet training
+9. Bilirubin regression
+10. GradCAM explainability
+11. Model evaluation
+12. FastAPI development
+13. React frontend
+14. PostgreSQL integration
+15. Docker deployment
+16. MLOps integration
+17. Monitoring and deployment
+18. Model optimization
+19. Research documentation
+20. Interview preparation
+
+The authoritative roadmap is maintained in PROJECT_BLUEPRINT.md.
+
+## Medical Disclaimer
+
+This project is intended for research and educational purposes.
+
+It is not a clinically validated medical device.
+
+Its predictions must not be used independently for diagnosis,
+treatment decisions, phototherapy decisions, or neonatal discharge.
+
+Clinical evaluation and appropriate regulatory requirements
+must be addressed before any real-world medical use.
+
+## Development Principles
+
+- Modular architecture
+- Clean code
+- Automated testing
+- Reproducible experiments
+- Dataset versioning
+- Model versioning
+- Security and privacy
+- Research transparency
+
+## License
+
+To be determined.
