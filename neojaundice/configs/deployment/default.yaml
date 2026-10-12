@@ -1,0 +1,14 @@
+environment: development
+
+api:
+  host: 127.0.0.1
+  port: 8000
+
+logging:
+  level: INFO
+
+monitoring:
+  prometheus_enabled: false
+
+model:
+  warmup_enabled: false

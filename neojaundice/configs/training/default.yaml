@@ -1,0 +1,28 @@
+epochs: 30
+
+batch_size: 16
+
+learning_rate: 0.0001
+
+optimizer: adamw
+
+weight_decay: 0.0001
+
+scheduler: cosine
+
+early_stopping:
+  enabled: true
+  patience: 7
+
+checkpoint:
+  save_best: true
+  monitor: validation_loss
+  mode: min
+
+reproducibility:
+  seed: 42
+  deterministic: true
+
+tracking:
+  enabled: true
+  experiment_name: neojaundice-training

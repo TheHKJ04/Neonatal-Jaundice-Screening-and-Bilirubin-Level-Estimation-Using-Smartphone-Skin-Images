@@ -1,0 +1,15 @@
+device: cpu
+
+batch_size: 1
+
+model_path: models/registry
+
+image_validation:
+  enabled: true
+
+quality_checks:
+  blur_detection: true
+  exposure_check: true
+
+explainability:
+  gradcam_enabled: false

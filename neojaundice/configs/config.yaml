@@ -1,0 +1,17 @@
+defaults:
+  - data: default
+  - model: efficientnet
+  - training: default
+  - inference: default
+  - deployment: default
+  - _self_
+
+project:
+  name: neojaundice
+  version: "0.1.0"
+
+seed: 42
+
+hydra:
+  run:
+    dir: experiments/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}

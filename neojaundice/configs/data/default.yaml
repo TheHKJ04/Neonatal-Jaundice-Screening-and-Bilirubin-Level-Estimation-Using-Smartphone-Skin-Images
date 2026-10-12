@@ -1,0 +1,21 @@
+name: neonatal_jaundice_dataset
+
+paths:
+  raw: data/raw
+  interim: data/interim
+  processed: data/processed
+  external: data/external
+
+image:
+  height: 224
+  width: 224
+  channels: 3
+
+split:
+  train: 0.70
+  validation: 0.15
+  test: 0.15
+
+split_strategy: patient_level
+
+random_seed: 42
