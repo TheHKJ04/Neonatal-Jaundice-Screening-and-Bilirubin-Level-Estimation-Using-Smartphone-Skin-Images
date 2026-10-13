@@ -1,3 +1,4 @@
+# type: ignore
 """
 NeoJaundice Phase 1 Engineering Audit.
 

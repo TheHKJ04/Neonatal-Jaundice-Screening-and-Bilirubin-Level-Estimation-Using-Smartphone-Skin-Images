@@ -1,0 +1,56 @@
+# NeoJaundice research dataset schema configuration
+
+schema_version: "0.1.0"
+
+dataset:
+  name: "neojaundice_research"
+
+  description: >
+    Research dataset for investigating neonatal jaundice
+    screening and bilirubin estimation from smartphone images.
+
+primary_target:
+  name: "bilirubin_mg_dl"
+  measurement_type: "TSB"
+  unit: "mg/dL"
+
+identifiers:
+  sample_id: "sample_id"
+  patient_id: "patient_id"
+
+image:
+  path_field: "image_path"
+
+  allowed_extensions:
+    - ".jpg"
+    - ".jpeg"
+    - ".png"
+
+timestamps:
+  image_field: "captured_at"
+  reference_field: "bilirubin_measured_at"
+
+  require_timezone: true
+
+  pairing_window_minutes: null
+
+splitting:
+  group_by: "patient_id"
+
+  train_fraction: 0.70
+  validation_fraction: 0.15
+  test_fraction: 0.15
+
+  random_seed: 42
+
+quality:
+  require_reference_measurement: true
+
+  require_patient_identifier: true
+
+  reject_duplicate_sample_ids: true
+
+research:
+  clinical_validation_status: "not_validated"
+
+  intended_use: "research_only"

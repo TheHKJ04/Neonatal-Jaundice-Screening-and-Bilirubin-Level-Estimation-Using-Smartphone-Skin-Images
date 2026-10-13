@@ -136,3 +136,5 @@ coverage.xml
 # Generated engineering audit reports
 docs/audits/*
 !docs/audits/.gitkeep
+
+installed-packages-local.txt
