@@ -132,3 +132,7 @@ config.local.yml
 
 # Coverage reports
 coverage.xml
+
+# Generated engineering audit reports
+docs/audits/*
+!docs/audits/.gitkeep
