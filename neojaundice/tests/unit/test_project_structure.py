@@ -4,18 +4,16 @@ Unit tests for NeoJaundice project structure.
 
 import sys
 import unittest
-
 from pathlib import Path
 from tempfile import TemporaryDirectory
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.verify_structure import (  # noqa: E402
-    REQUIRED_DIRECTORIES,
     PYTHON_PACKAGES,
+    REQUIRED_DIRECTORIES,
     verify_directories,
     verify_python_packages,
     verify_structure,
@@ -23,7 +21,6 @@ from scripts.verify_structure import (  # noqa: E402
 
 
 class TestProjectStructure(unittest.TestCase):
-
     def test_actual_project_structure(self):
         """Verify the real project structure."""
 
@@ -43,7 +40,6 @@ class TestProjectStructure(unittest.TestCase):
         """Verify missing directories are detected."""
 
         with TemporaryDirectory() as temp_dir:
-
             root = Path(temp_dir)
 
             missing = verify_directories(root)
@@ -57,7 +53,6 @@ class TestProjectStructure(unittest.TestCase):
         """Verify missing package initializers are detected."""
 
         with TemporaryDirectory() as temp_dir:
-
             root = Path(temp_dir)
 
             missing = verify_python_packages(root)
@@ -71,21 +66,16 @@ class TestProjectStructure(unittest.TestCase):
         """Verify a complete structure passes validation."""
 
         with TemporaryDirectory() as temp_dir:
-
             root = Path(temp_dir)
 
             for directory in REQUIRED_DIRECTORIES:
-
                 (root / directory).mkdir(
                     parents=True,
                     exist_ok=True,
                 )
 
             for package in PYTHON_PACKAGES:
-
-                initializer = (
-                    root / package / "__init__.py"
-                )
+                initializer = root / package / "__init__.py"
 
                 initializer.parent.mkdir(
                     parents=True,

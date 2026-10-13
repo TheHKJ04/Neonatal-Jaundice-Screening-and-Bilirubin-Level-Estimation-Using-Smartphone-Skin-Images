@@ -14,7 +14,6 @@ from typing import Literal
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
@@ -70,9 +69,7 @@ class Settings(BaseSettings):
         "CRITICAL",
     ] = "INFO"
 
-    cors_origins: list[str] = Field(
-        default_factory=lambda: ["http://localhost:5173"]
-    )
+    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
 
     model_path: Path = Path("models/registry")
 

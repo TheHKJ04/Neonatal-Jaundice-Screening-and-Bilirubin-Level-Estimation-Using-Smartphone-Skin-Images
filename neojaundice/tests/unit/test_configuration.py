@@ -3,7 +3,6 @@ Tests for NeoJaundice configuration management.
 """
 
 import pytest
-
 from hydra import compose, initialize_config_dir
 from pydantic import ValidationError
 
@@ -81,9 +80,7 @@ def test_patient_level_split_configuration():
     assert config.data.split_strategy == "patient_level"
 
     total = (
-        config.data.split.train
-        + config.data.split.validation
-        + config.data.split.test
+        config.data.split.train + config.data.split.validation + config.data.split.test
     )
 
     assert total == pytest.approx(1.0)

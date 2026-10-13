@@ -3,7 +3,7 @@
 ## Requirements
 
 - Windows 10/11, Linux, or macOS
-- Python 3.11
+- Python 3.13
 - Git
 - VS Code
 - Docker Desktop (for later phases)
@@ -23,13 +23,13 @@ cd neojaundice
 Windows:
 
 ```powershell
-py -3.11 -m venv .venv
+py -3.13 -m venv .venv
 ```
 
 Linux/macOS:
 
 ```bash
-python3.11 -m venv .venv
+python3.13 -m venv .venv
 ```
 
 ## 3. Activate the Environment

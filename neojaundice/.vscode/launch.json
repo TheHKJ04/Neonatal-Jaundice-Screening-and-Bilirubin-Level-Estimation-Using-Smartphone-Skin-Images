@@ -1,0 +1,45 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "NeoJaundice: Verify Structure",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/verify_structure.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true
+    },
+    {
+      "name": "NeoJaundice: Verify Dependencies",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/verify_dependencies.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true
+    },
+    {
+      "name": "NeoJaundice: Verify Configuration",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/verify_config.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true
+    },
+    {
+      "name": "NeoJaundice: Run Unit Tests",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "tests/unit",
+        "-v"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true
+    }
+  ]
+}

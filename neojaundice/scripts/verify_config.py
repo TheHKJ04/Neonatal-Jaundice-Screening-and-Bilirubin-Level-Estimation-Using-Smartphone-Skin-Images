@@ -12,7 +12,6 @@ from omegaconf import OmegaConf
 
 from backend.app.core.config import Settings
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 CONFIG_DIR = PROJECT_ROOT / "configs"
@@ -50,9 +49,7 @@ def verify_hydra_configuration() -> bool:
 
     for section in required_sections:
         if section not in config:
-            raise ValueError(
-                f"Missing Hydra configuration section: {section}"
-            )
+            raise ValueError(f"Missing Hydra configuration section: {section}")
 
     # Convert the composed configuration to a plain
     # Python container to verify that its structure

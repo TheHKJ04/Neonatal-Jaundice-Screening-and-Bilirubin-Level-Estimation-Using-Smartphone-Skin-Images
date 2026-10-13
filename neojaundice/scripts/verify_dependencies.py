@@ -8,9 +8,6 @@ Usage:
 import importlib.metadata
 import sys
 
-from pathlib import Path
-
-
 REQUIRED_PACKAGES = {
     "numpy": "numpy",
     "pandas": "pandas",
@@ -70,7 +67,6 @@ def main() -> int:
     print("\nInstalled packages:")
 
     for package_name, version in results.items():
-
         if version is None:
             print(f"[MISSING] {package_name}")
             missing_packages.append(package_name)
@@ -79,7 +75,6 @@ def main() -> int:
             print(f"[OK] {package_name}: {version}")
 
     if missing_packages:
-
         print("\n[FAILED] Missing dependencies.")
 
         return 1

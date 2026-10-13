@@ -3,7 +3,6 @@ Tests for NeoJaundice dependency configuration.
 """
 
 import tomllib
-
 from pathlib import Path
 from unittest.mock import patch
 
@@ -11,7 +10,6 @@ from scripts.verify_dependencies import (
     get_package_version,
     verify_packages,
 )
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -42,7 +40,7 @@ def test_pyproject_contains_project_metadata():
 
     assert project["version"] == "0.1.0"
 
-    assert project["requires-python"] == ">=3.11"
+    assert project["requires-python"] == ">=3.13,<3.14"
 
 
 def test_required_dependency_groups_exist():
@@ -77,7 +75,6 @@ def test_missing_package_returns_none():
     with patch(
         "scripts.verify_dependencies.importlib.metadata.version"
     ) as mock_version:
-
         from importlib.metadata import PackageNotFoundError
 
         mock_version.side_effect = PackageNotFoundError
@@ -92,10 +89,7 @@ def test_verify_packages_returns_versions():
     Verify package version collection.
     """
 
-    with patch(
-        "scripts.verify_dependencies.get_package_version"
-    ) as mock_version:
-
+    with patch("scripts.verify_dependencies.get_package_version") as mock_version:
         mock_version.return_value = "1.2.3"
 
         results = verify_packages(

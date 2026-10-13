@@ -1,164 +1,131 @@
-# NeoJaundice
+# ==========================================
+# NeoJaundice - Git Ignore Configuration
+# ==========================================
 
-## Neonatal Jaundice Screening and Bilirubin Level Estimation Using Smartphone Skin Images
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+build/
+dist/
 
-NeoJaundice is a research-oriented computer vision and machine
-learning project investigating neonatal jaundice screening and
-bilirubin level estimation from smartphone skin images.
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
 
-The project aims to develop a modular AI system with reproducible
-machine learning experiments, explainability, backend APIs,
-a frontend application, and MLOps infrastructure.
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
 
-## Project Status
+# IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+.idea/
 
-Current Phase: Phase 1 - Project Setup
+# Operating system
+.DS_Store
+Thumbs.db
+desktop.ini
 
-Status: Under Development
+# Python testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
 
-No clinically validated prediction model is currently available.
+# Jupyter
+.ipynb_checkpoints/
 
-## Intended Capabilities
+# Logs
+logs/*
+!logs/.gitkeep
+*.log
 
-- Smartphone image validation
-- Facial region-of-interest extraction
-- Skin segmentation
-- Image preprocessing
-- Color feature extraction
-- Jaundice screening research
-- Bilirubin regression research
-- EfficientNet-based deep learning
-- GradCAM explainability
-- FastAPI inference API
-- React frontend
-- PostgreSQL integration
-- Docker deployment
-- MLflow experiment tracking
-- DVC dataset versioning
-- Automated testing and CI/CD
-- Model monitoring
-- ONNX model export
+# Datasets
+data/raw/*
+data/interim/*
+data/processed/*
+data/external/*
 
-## Technology Stack
+# Keep directory placeholders
+!data/raw/.gitkeep
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+!data/external/.gitkeep
 
-### Machine Learning
+# ML model checkpoints
+*.pt
+*.pth
+*.ckpt
+*.h5
+*.hdf5
+*.onnx
+*.tflite
 
-- Python
-- PyTorch
-- OpenCV
-- MediaPipe
-- Albumentations
-- NumPy
-- Pandas
+# Experiment outputs
+experiments/*
+!experiments/.gitkeep
 
-### Backend
+# MLflow artifacts
+mlflow/*
+!mlflow/.gitkeep
+mlruns/
+mlartifacts/
 
-- FastAPI
-- SQLAlchemy
-- PostgreSQL
-- Alembic
+# DVC cache
+.dvc/cache/
+.dvc/tmp/
 
-### Frontend
+# Node.js
+node_modules/
+frontend/dist/
+frontend/build/
+frontend/coverage/
 
-- React
-- TypeScript
-- Tailwind CSS
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
 
-### MLOps
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
 
-- Docker
-- Docker Compose
-- MLflow
-- DVC
-- GitHub Actions
+# Docker local overrides
+docker-compose.override.yml
+compose.override.yaml
 
-### Monitoring
+# OS-generated files
+*.swp
+*.swo
 
-- Prometheus
-- Grafana
+# Additional dataset artifacts
+*.parquet
+*.feather
+*.npy
+*.npz
 
-## Architecture
+# Medical imaging formats
+*.dcm
+*.dicom
 
-The planned image processing pipeline is:
-
-Smartphone Image
-→ Image Validation
-→ ROI Extraction
-→ Skin Segmentation
-→ Color Correction
-→ Feature Extraction
-→ EfficientNet
-→ Classification and Regression
-→ Explainability
-→ FastAPI
-→ React Frontend
-
-See docs/architecture.md when implementation documentation
-becomes available.
-
-## Repository Structure
-
-- backend/ : Backend application
-- frontend/ : User interface
-- ml/ : Machine learning pipelines
-- data/ : Dataset organization
-- models/ : Model artifacts
-- configs/ : Configuration files
-- tests/ : Automated tests
-- notebooks/ : Research notebooks
-- experiments/ : Experiment outputs
-- docs/ : Documentation
-- docker/ : Container configuration
-- scripts/ : Utility scripts
-
-## Development Roadmap
-
-1. Project setup
-2. Dataset engineering
-3. Exploratory data analysis
-4. Image preprocessing
-5. ROI extraction
-6. Feature engineering
-7. Baseline models
-8. EfficientNet training
-9. Bilirubin regression
-10. GradCAM explainability
-11. Model evaluation
-12. FastAPI development
-13. React frontend
-14. PostgreSQL integration
-15. Docker deployment
-16. MLOps integration
-17. Monitoring and deployment
-18. Model optimization
-19. Research documentation
-20. Interview preparation
-
-The authoritative roadmap is maintained in PROJECT_BLUEPRINT.md.
-
-## Medical Disclaimer
-
-This project is intended for research and educational purposes.
-
-It is not a clinically validated medical device.
-
-Its predictions must not be used independently for diagnosis,
-treatment decisions, phototherapy decisions, or neonatal discharge.
-
-Clinical evaluation and appropriate regulatory requirements
-must be addressed before any real-world medical use.
-
-## Development Principles
-
-- Modular architecture
-- Clean code
-- Automated testing
-- Reproducible experiments
-- Dataset versioning
-- Model versioning
-- Security and privacy
-- Research transparency
-
-## License
-
-To be determined.
+# Local configuration overrides
+config.local.yaml
+config.local.yml
+*.local.env
