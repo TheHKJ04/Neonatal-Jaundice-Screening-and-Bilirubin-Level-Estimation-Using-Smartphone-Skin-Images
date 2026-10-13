@@ -22,6 +22,7 @@
 - [Research Methodology](research_methodology.md)
 - [Dataset Specification](dataset_specification.md)
 - [Dataset Sources](dataset_sources.md)
+- [Dataset Acquisition Protocol](dataset_acquisition.md)
 
 ## Existing Project Records
 

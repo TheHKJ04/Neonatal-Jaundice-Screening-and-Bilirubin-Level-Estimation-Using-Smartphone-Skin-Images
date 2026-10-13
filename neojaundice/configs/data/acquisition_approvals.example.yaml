@@ -1,0 +1,30 @@
+schema_version: "0.1.0"
+
+approvals:
+  - dataset_id: "neojaundice_figshare"
+
+    status: "pending"
+
+    reviewed_by: null
+    reviewed_at: null
+
+    intended_use: "academic_research"
+
+    source_version: null
+
+    license_name: null
+    license_url: null
+
+    license_reviewed: false
+
+    privacy_reviewed: false
+
+    data_use_permission_confirmed: false
+
+    redistribution_allowed: null
+
+    approval_reference: null
+
+    notes: >
+      Acquisition is not authorized until the
+      required reviews are completed.

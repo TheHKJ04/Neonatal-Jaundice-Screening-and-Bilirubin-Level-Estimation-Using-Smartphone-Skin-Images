@@ -138,3 +138,27 @@ docs/audits/*
 !docs/audits/.gitkeep
 
 installed-packages-local.txt
+
+# Clinical and research datasets
+data/raw/**
+data/external/**
+data/interim/**
+data/processed/**
+
+# Preserve directory placeholders
+!data/raw/.gitkeep
+!data/external/.gitkeep
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+
+# Private acquisition records
+configs/data/acquisition_approvals.yaml
+
+# Acquisition logs
+logs/dataset_acquisition.jsonl
+
+# Downloaded archives
+*.zip
+*.tar
+*.tar.gz
+*.7z
