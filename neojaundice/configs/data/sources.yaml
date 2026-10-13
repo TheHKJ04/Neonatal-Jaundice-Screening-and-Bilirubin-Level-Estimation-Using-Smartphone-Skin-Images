@@ -1,0 +1,88 @@
+registry_version: "0.1.0"
+
+datasets:
+  - dataset_id: "neojaundice_figshare"
+    name: "NeoJaundice: Neonatal Jaundice Evaluation in Demographic Images"
+    source_url: "https://springernature.figshare.com/articles/dataset/NeoJaundice_Neonatal_Jaundice_Evaluation_in_Demographic_Images/22302559"
+    provider: "Springer Nature Figshare"
+    access_status: "requires_verification"
+    license_status: "unverified"
+    task_types:
+      - classification
+      - regression
+    reported_patients: 745
+    reported_images: 2235
+    has_numerical_tsb_labels: null
+    has_patient_identifiers: null
+    notes: >
+      Published studies describe TSB-based labels.
+      Downloadable file structure and numerical label
+      availability must be inspected.
+
+  - dataset_id: "forehead_sternum_mendeley"
+    name: "Neonatal Jaundice Assessment: Forehead and Sternum Images"
+    source_url: "https://data.mendeley.com/datasets/yfsz6c36vc/1"
+    provider: "Mendeley Data"
+    access_status: "public_record"
+    license_status: "cc_by_4_0"
+    task_types:
+      - regression
+      - classification
+    reported_patients: 300
+    reported_images: null
+    has_numerical_tsb_labels: null
+    has_patient_identifiers: null
+    notes: >
+      Dataset description reports paired TSB and TcB
+      measurements. Images were captured using a
+      smartphone-connected digital microscope.
+      File-level metadata must be inspected.
+
+  - dataset_id: "njn_zenodo"
+    name: "NJN: Normal and Jaundiced Newborns"
+    source_url: "https://zenodo.org/records/7825810"
+    provider: "Zenodo"
+    access_status: "public_download"
+    license_status: "unverified"
+    task_types:
+      - classification
+    reported_patients: 600
+    reported_images: null
+    has_numerical_tsb_labels: false
+    has_patient_identifiers: null
+    notes: >
+      Public description contains inconsistent image counts.
+      Numerical TSB labels are not established.
+      Inspect the archive before use.
+
+  - dataset_id: "sternal_github"
+    name: "Surveillance of Neonatal Jaundice"
+    source_url: "https://github.com/mj129/Surveillance-of-neonatal-jaundice"
+    provider: "GitHub"
+    access_status: "sample_only"
+    license_status: "requires_verification"
+    task_types:
+      - regression
+    reported_patients: 4
+    reported_images: 12
+    has_numerical_tsb_labels: null
+    has_patient_identifiers: null
+    notes: >
+      Repository provides sample images and labels.
+      The full training dataset is not included.
+
+  - dataset_id: "tsb_mendeley_embargoed"
+    name: "Digital Skin Images and TSB Measurements in Jaundiced Neonates"
+    source_url: "https://data.mendeley.com/datasets/v5gdzmssf3/1"
+    provider: "Mendeley Data"
+    access_status: "embargoed"
+    license_status: "unverified"
+    task_types:
+      - regression
+    reported_patients: null
+    reported_images: null
+    has_numerical_tsb_labels: null
+    has_patient_identifiers: null
+    notes: >
+      Dataset record is embargoed until January 2028.
+      Not available for current experiments.
