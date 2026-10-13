@@ -129,3 +129,6 @@ compose.override.yaml
 config.local.yaml
 config.local.yml
 *.local.env
+
+# Coverage reports
+coverage.xml

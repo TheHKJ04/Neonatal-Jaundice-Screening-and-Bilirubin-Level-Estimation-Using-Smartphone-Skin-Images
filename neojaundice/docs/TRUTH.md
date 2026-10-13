@@ -1188,9 +1188,3 @@ At every stage explain both:
 Begin now with:
 
 PHASE 1 - Complete Project Setup and Folder Structure.
-
-
-
-
-
-
