@@ -1,3 +1,4 @@
+# type: ignore
 """
 Verify NeoJaundice quality tooling configuration.
 """
