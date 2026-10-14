@@ -23,6 +23,7 @@
 - [Dataset Specification](dataset_specification.md)
 - [Dataset Sources](dataset_sources.md)
 - [Dataset Acquisition Protocol](dataset_acquisition.md)
+- [Dataset Inspection Pipeline](dataset_inspection.md)
 
 ## Existing Project Records
 
