@@ -55,3 +55,5 @@ Documentation must be updated whenever:
 - Security assumptions change
 
 - [Real Dataset Acquisition](real_dataset_acquisition.md)
+
+- [Dataset Structure Analysis](dataset_structure_analysis.md)
