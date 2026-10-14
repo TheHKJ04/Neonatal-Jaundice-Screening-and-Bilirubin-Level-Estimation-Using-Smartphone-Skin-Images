@@ -24,6 +24,7 @@
 - [Dataset Sources](dataset_sources.md)
 - [Dataset Acquisition Protocol](dataset_acquisition.md)
 - [Dataset Inspection Pipeline](dataset_inspection.md)
+- [Clinical Metadata Integration](metadata_integration.md)
 
 ## Existing Project Records
 
