@@ -53,3 +53,5 @@ Documentation must be updated whenever:
 - Model interfaces change
 - Deployment procedures change
 - Security assumptions change
+
+- [Real Dataset Acquisition](real_dataset_acquisition.md)
