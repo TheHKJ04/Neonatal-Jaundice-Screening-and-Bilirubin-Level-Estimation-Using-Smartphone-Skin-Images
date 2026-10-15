@@ -162,3 +162,18 @@ logs/dataset_acquisition.jsonl
 *.tar
 *.tar.gz
 *.7z
+
+# NeoJaundice private datasets and generated artifacts
+/data/raw/
+/data/interim/
+/data/processed/
+/data/external/
+
+# Python
+__pycache__/
+*.pyc
+*.py.bak
+
+# Local experiment artifacts
+/mlruns/
+/mlflow/mlruns/
