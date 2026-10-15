@@ -456,3 +456,45 @@ Phase 5 — Task 5.2: ROI Quality Validation.
 
 Research constraint:
 No verified numerical bilirubin labels.
+
+## Phase 5 — Task 5.2: ROI Quality Control
+
+Status: IMPLEMENTED — VALIDATION PENDING
+
+Implemented:
+- ROI mask integrity validation
+- Binary mask validation
+- Non-finite value detection
+- Padding exclusion checks
+- Bounding-box consistency
+- Pixel-count consistency
+- Coverage consistency
+- Region-stratified review sampling
+- Reproducible random seed
+- Review overlay generation
+- Human-review manifest
+- Batch QC CSV and JSON reports
+- Automated unit tests
+- Research documentation
+
+Expected dataset:
+- 478 total images
+- 239 forehead images
+- 239 sternum images
+
+Expected pilot review:
+- 20 forehead images
+- 20 sternum images
+
+Remaining:
+- Run unit tests
+- Run dataset-level QC
+- Inspect generated review overlays
+- Complete human visual review
+- Commit validated implementation
+
+Next:
+Phase 5.3 — Skin Segmentation Experiments
+
+Research limitation:
+No verified numerical bilirubin reference labels.

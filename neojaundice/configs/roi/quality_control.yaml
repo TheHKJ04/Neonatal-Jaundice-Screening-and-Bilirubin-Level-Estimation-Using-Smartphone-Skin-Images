@@ -1,0 +1,25 @@
+﻿schema_version: "1.0"
+
+name: geometric_roi_quality_control
+
+sampling:
+  method: region_stratified_random
+  random_seed: 42
+  samples_per_region: 20
+
+validation:
+  require_binary_mask: true
+  require_padding_exclusion: true
+  require_geometry_consistency: true
+  require_nonempty_roi: true
+
+review:
+  categories:
+    - suitable
+    - hair_or_eyebrow_contamination
+    - clothing_contamination
+    - background_contamination
+    - strong_shadow_or_reflection
+    - uncertain
+
+  clinical_validation: false
