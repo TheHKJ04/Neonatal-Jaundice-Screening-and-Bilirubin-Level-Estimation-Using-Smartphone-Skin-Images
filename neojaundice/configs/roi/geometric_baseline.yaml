@@ -1,0 +1,19 @@
+﻿schema_version: "1.0"
+
+name: geometric_roi_baseline
+
+regions:
+  forehead:
+    x_min: 0.30
+    y_min: 0.25
+    x_max: 0.70
+    y_max: 0.60
+
+  sternum:
+    x_min: 0.30
+    y_min: 0.30
+    x_max: 0.70
+    y_max: 0.70
+
+visualization:
+  previews_per_region: 5

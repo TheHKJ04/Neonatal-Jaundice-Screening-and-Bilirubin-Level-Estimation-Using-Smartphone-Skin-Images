@@ -424,3 +424,35 @@ Phase 5 — Region-of-Interest Extraction
 
 Research limitation:
 No verified numerical TSB/TcB reference labels are available.
+
+## Phase 5 — Task 5.1: Geometric ROI Extraction
+
+Status: Implementation provided; validation pending.
+
+Components:
+- Region-specific ROI YAML configuration
+- Normalized ROI coordinates
+- Pixel-coordinate transformation
+- ROI binary masks
+- Valid-pixel mask intersection
+- ROI coverage statistics
+- Region-specific ROI previews
+- Batch ROI manifest
+- Batch ROI summary
+- Automated unit tests
+- Research documentation
+
+Dataset:
+- 478 images
+- 239 forehead
+- 239 sternum
+
+Next:
+Run ROI tests and batch extraction.
+Review representative ROI overlays.
+
+Then:
+Phase 5 — Task 5.2: ROI Quality Validation.
+
+Research constraint:
+No verified numerical bilirubin labels.
