@@ -498,3 +498,45 @@ Phase 5.3 — Skin Segmentation Experiments
 
 Research limitation:
 No verified numerical bilirubin reference labels.
+
+## Phase 5 — Task 5.3: Experimental Skin Segmentation
+
+Status: IMPLEMENTED — VALIDATION PENDING
+
+Methods:
+- Geometric ROI baseline
+- YCrCb color thresholding
+- HSV color thresholding
+
+Implemented:
+- Configurable thresholds
+- RGB-to-YCrCb conversion
+- RGB-to-HSV conversion
+- Candidate skin masks
+- Geometric ROI intersection
+- Coverage calculation
+- Low/high coverage warnings
+- Segmentation QC
+- Batch comparison reports
+- Comparison previews
+- Automated tests
+- Research documentation
+
+Expected:
+- 478 images
+- 956 method evaluations
+
+Remaining:
+- Run tests
+- Run batch segmentation
+- Inspect comparison overlays
+- Analyze region-specific coverage
+- Commit validated implementation
+
+Next:
+Phase 5.4 — ROI Method Comparison.
+
+Research constraints:
+- No annotated skin segmentation ground truth
+- No verified numerical bilirubin reference labels
+- No established clinical validity

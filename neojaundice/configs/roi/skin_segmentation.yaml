@@ -1,0 +1,25 @@
+﻿schema_version: "1.0"
+
+name: experimental_skin_segmentation
+
+methods:
+  ycrcb:
+    enabled: true
+    lower: [0, 133, 77]
+    upper: [255, 173, 127]
+
+  hsv:
+    enabled: true
+    lower: [0, 20, 40]
+    upper: [25, 255, 255]
+
+quality:
+  low_coverage_warning: 0.10
+  high_coverage_warning: 0.95
+
+visualization:
+  previews_per_region: 5
+
+research:
+  clinical_validation: false
+  annotated_skin_masks_available: false
