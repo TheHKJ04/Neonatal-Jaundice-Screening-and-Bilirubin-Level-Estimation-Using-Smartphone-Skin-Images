@@ -384,3 +384,43 @@ Phase 5 — ROI Extraction.
 
 Research constraint:
 No verified numerical bilirubin labels.
+
+## Phase 4 — Image Preprocessing and Quality Control
+
+Status: COMPLETED
+
+Verified results:
+- 201 automated tests passed
+- 478 images processed and QC validated
+- 0 QC failures
+- 100% automated QC pass rate
+- Forehead: 239 images
+- Sternum: 239 images
+- Forehead previews: 3
+- Sternum previews: 3
+
+Git:
+- Branch: develop
+- Commit: fcbd8e0
+- Message: feat(preprocessing): add image quality control pipeline
+
+Implemented:
+- EXIF orientation handling
+- RGB conversion
+- Aspect-ratio-preserving resizing
+- Letterbox padding
+- Valid-pixel masks
+- Configurable normalization
+- PyTorch tensor generation
+- Transformation metadata
+- Automated preprocessing QC
+- Region-stratified previews
+
+Remaining validation:
+- Human visual review of generated previews
+
+Next:
+Phase 5 — Region-of-Interest Extraction
+
+Research limitation:
+No verified numerical TSB/TcB reference labels are available.
