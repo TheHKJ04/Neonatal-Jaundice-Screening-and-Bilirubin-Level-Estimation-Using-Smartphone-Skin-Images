@@ -79,3 +79,45 @@ Lighting sensitivity
 
 Potential Improvements:
 Color normalization
+
+## Phase 5.3 — Initial Color-Based Segmentation Findings
+
+Dataset:
+- 478 neonatal images
+- 239 forehead images
+- 239 sternum images
+
+Methods:
+- YCrCb thresholding
+- HSV thresholding
+
+Technical execution:
+- 956 method evaluations
+- 0 execution failures
+- 270 automated unit tests passed
+
+Mean geometric ROI coverage:
+- YCrCb: 99.8521%
+- HSV: 99.9944%
+
+High-coverage warnings:
+- YCrCb: 475/478
+- HSV: 478/478
+
+Interpretation:
+
+Both methods retained nearly all geometric ROI pixels.
+The initial thresholds therefore provided limited additional
+pixel selection relative to the geometric ROI baseline.
+
+This is an observation about coverage, not segmentation accuracy.
+
+Limitations:
+- No annotated skin segmentation masks
+- Visual evaluation pending
+- No verified numerical bilirubin labels
+- No established clinical validity
+
+Next experiment:
+Analyze region-specific coverage distributions and evaluate
+threshold sensitivity using controlled experiments.

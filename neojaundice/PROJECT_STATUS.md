@@ -540,3 +540,43 @@ Research constraints:
 - No annotated skin segmentation ground truth
 - No verified numerical bilirubin reference labels
 - No established clinical validity
+
+## Phase 5 — Task 5.4: ROI Method Comparison
+
+Status: IMPLEMENTED — VALIDATION PENDING
+
+Implemented:
+- Manifest validation
+- Region-specific coverage analysis
+- Descriptive statistics
+- Paired method comparison
+- Image-level bootstrap intervals
+- Large-disagreement identification
+- Near-full coverage analysis
+- Research charts
+- CSV and JSON reporting
+- Automated unit tests
+- Research documentation
+
+Input:
+Phase 5.3 segmentation_manifest.csv
+
+Expected:
+- 478 paired image comparisons
+- 239 forehead images
+- 239 sternum images
+
+Remaining:
+- Run tests
+- Generate comparison reports
+- Inspect statistical results
+- Review disagreement cases
+- Commit validated implementation
+
+Research constraints:
+- No annotated segmentation ground truth
+- No verified patient identifiers
+- No verified numerical bilirubin labels
+
+Next:
+Threshold-sensitivity and pixel-level agreement experiments.
