@@ -1,0 +1,25 @@
+﻿schema_version: "1.0"
+
+experiment:
+  name: geometric_roi_color_features
+
+roi:
+  method: geometric
+
+features:
+  color_spaces:
+    - rgb
+    - hsv
+    - ycrcb
+    - lab
+
+  statistics:
+    - mean
+    - std
+    - median
+    - p10
+    - p90
+
+research:
+  clinical_validation: false
+  bilirubin_labels_available: false

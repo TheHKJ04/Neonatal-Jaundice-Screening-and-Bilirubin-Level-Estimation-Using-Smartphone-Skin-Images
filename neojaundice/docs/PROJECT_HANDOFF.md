@@ -218,3 +218,22 @@ Run experiment, analyze warning distribution,
 and inspect flagged images.
 
 Regression dataset acquisition remains open.
+
+## Phase 6.1 — Color Feature Engineering
+
+Previous verified checkpoint:
+bf86235
+
+Previous verified tests:
+337 passed
+
+Status:
+Implementation provided; validation pending.
+
+Expected:
+478 images and 61 numerical features per image.
+
+Next:
+Phase 6.2 — Feature analysis and dataset preparation.
+
+Regression dataset acquisition remains open.
