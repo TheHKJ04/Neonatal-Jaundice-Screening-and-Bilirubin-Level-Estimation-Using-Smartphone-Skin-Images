@@ -1,0 +1,45 @@
+﻿schema_version: "1.0"
+
+dataset:
+  name: external_labeled_neonatal_dataset
+  task: bilirubin_regression
+
+required_columns:
+  - image_id
+  - patient_id
+  - image_path
+  - body_region
+  - bilirubin_value
+  - bilirubin_unit
+  - measurement_type
+
+optional_columns:
+  - image_timestamp
+  - measurement_timestamp
+  - gestational_age_weeks
+  - postnatal_age_hours
+  - camera_model
+  - lighting_condition
+
+allowed_regions:
+  - forehead
+  - sternum
+
+allowed_units:
+  - mg/dL
+  - umol/L
+
+allowed_measurement_types:
+  - TSB
+  - TcB
+
+validation:
+  require_patient_id: true
+  require_positive_bilirubin: true
+  require_existing_images: true
+  reject_duplicate_image_ids: true
+
+research:
+  clinical_validation: false
+  require_verified_reference_measurements: true
+  require_dataset_provenance: true
