@@ -1,0 +1,23 @@
+﻿schema_version: "1.0"
+
+experiment:
+  name: roi_image_quality
+  description: Evaluate image quality inside geometric ROIs
+
+brightness:
+  underexposed_pixel_threshold: 30
+  overexposed_pixel_threshold: 225
+
+quality_warnings:
+  minimum_roi_pixels: 100
+  low_brightness_threshold: 40
+  high_brightness_threshold: 215
+  low_contrast_threshold: 15
+  low_sharpness_threshold: 50
+  maximum_underexposed_fraction: 0.20
+  maximum_overexposed_fraction: 0.20
+
+research:
+  clinical_validation: false
+  quality_thresholds_are_exploratory: true
+  automatic_image_rejection: false

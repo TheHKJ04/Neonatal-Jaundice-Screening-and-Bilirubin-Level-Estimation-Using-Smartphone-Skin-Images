@@ -176,3 +176,45 @@ Last verified commit before this milestone:
 
 Last verified unit tests:
 322 passed
+
+## Local Dataset Audit — 2026-10-16
+
+Confirmed:
+478 image files and no additional metadata files.
+
+Regression labels:
+Unavailable locally.
+
+Classification labels:
+Unavailable locally.
+
+Decision:
+Continue image-quality assessment using the current
+dataset while acquiring verified labeled datasets.
+
+Next:
+Phase 5.6B — ROI Image Quality Assessment.
+
+## Phase 5.6B — Image Quality Assessment
+
+Status:
+Implemented; validation pending.
+
+Files:
+- configs/evaluation/image_quality.yaml
+- ml/evaluation/image_quality.py
+- scripts/run_image_quality.py
+- tests/unit/test_image_quality.py
+- docs/image_quality_assessment.md
+
+Expected:
+478 image evaluations.
+
+Expected total unit tests:
+337.
+
+Next:
+Run experiment, analyze warning distribution,
+and inspect flagged images.
+
+Regression dataset acquisition remains open.
