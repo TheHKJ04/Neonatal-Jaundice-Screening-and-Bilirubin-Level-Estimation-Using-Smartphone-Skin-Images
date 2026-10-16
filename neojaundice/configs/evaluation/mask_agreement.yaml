@@ -1,0 +1,37 @@
+﻿schema_version: "1.0"
+
+experiment:
+  name: pixel_mask_agreement
+  description: Pixel-level agreement and threshold sensitivity
+
+baseline_segmentation_config: configs/roi/skin_segmentation.yaml
+
+variants:
+  baseline:
+    use_baseline_config: true
+
+  moderate:
+    ycrcb:
+      lower: [0, 138, 82]
+      upper: [255, 168, 122]
+
+    hsv:
+      lower: [0, 35, 55]
+      upper: [20, 245, 245]
+
+  restrictive:
+    ycrcb:
+      lower: [0, 143, 87]
+      upper: [255, 163, 117]
+
+    hsv:
+      lower: [0, 50, 70]
+      upper: [15, 235, 235]
+
+visualization:
+  previews_per_region: 5
+
+research:
+  clinical_validation: false
+  segmentation_ground_truth_available: false
+  threshold_variants_are_exploratory: true

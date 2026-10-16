@@ -580,3 +580,43 @@ Research constraints:
 
 Next:
 Threshold-sensitivity and pixel-level agreement experiments.
+
+## Phase 5 — Task 5.5: Mask Agreement and Threshold Sensitivity
+
+Status: IMPLEMENTED — VALIDATION PENDING
+
+Implemented:
+- Pixel-level mask comparison
+- IoU agreement
+- Dice agreement
+- Pixel disagreement rate
+- Empty-mask handling
+- Three threshold configurations
+- Region-specific analysis
+- Agreement visualizations
+- Batch experiment runner
+- Automated unit tests
+- Research documentation
+
+Expected:
+- 478 images
+- 3 configurations
+- 1434 paired-mask evaluations
+- 2868 candidate segmentation masks
+
+Remaining:
+- Run unit tests
+- Run complete experiment
+- Verify baseline reproducibility
+- Inspect agreement visualizations
+- Analyze sensitivity results
+- Commit validated implementation
+
+Research constraints:
+- No expert-annotated skin masks
+- No verified numerical bilirubin labels
+- No established clinical validity
+
+Next:
+Segmentation suitability review and feature-engineering
+readiness assessment.
