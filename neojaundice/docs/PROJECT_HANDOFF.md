@@ -147,3 +147,32 @@ When continuing in a new chat:
 Do not restart completed modules unnecessarily.
 
 Update this file after every validated phase.
+
+## Phase 5.6A.2 — Dataset Discovery
+
+Date:
+2026-10-16
+
+Candidate datasets identified:
+- NeoJaundice (classification priority)
+- NJN (classification alternative)
+- Original Mendeley forehead/sternum dataset
+- Sternal skin regression examples
+- Embargoed TSB image dataset
+
+Key finding:
+No sufficiently large, accessible, image-paired
+numerical regression dataset has yet been verified.
+
+Immediate priority:
+Audit the original Mendeley dataset for clinical
+metadata and image-to-bilirubin mappings.
+
+Parallel task:
+Phase 5.6B — ROI image-quality assessment.
+
+Last verified commit before this milestone:
+25a3658
+
+Last verified unit tests:
+322 passed
