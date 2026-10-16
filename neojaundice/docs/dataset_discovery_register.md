@@ -149,3 +149,34 @@ synthetic, or unverified bilirubin measurements.
 3. Inspect NeoJaundice archive metadata.
 4. Inspect the 12-image regression example.
 5. Decide whether author contact is required.
+
+## Local Mendeley Dataset Audit
+
+Audit date: 2026-10-16
+
+Total image files: 478
+Non-image files: 0
+
+No CSV, Excel, or other metadata files were found
+in the local extracted dataset.
+
+No filenames matching bilirubin, clinical, patient,
+label, metadata, TSB, or TcB were found.
+
+Conclusion:
+The local dataset does not provide verified numerical
+bilirubin labels or image-to-measurement mappings.
+
+Approved uses:
+- Image preprocessing
+- ROI extraction
+- Image quality analysis
+- Unsupervised color feature analysis
+
+Not approved for:
+- Supervised bilirubin regression
+- Supervised jaundice classification
+
+Next action:
+Investigate externally available labeled datasets
+and contact the original authors if necessary.

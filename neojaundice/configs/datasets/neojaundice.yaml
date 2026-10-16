@@ -1,0 +1,22 @@
+﻿schema_version: "1.0"
+
+dataset:
+  name: neojaundice
+  image_directory: images
+  metadata_file: chd_jaundice_published_2.csv
+
+targets:
+  regression: bilirubin_value
+  classification: treatment_label
+
+splitting:
+  train_fraction: 0.70
+  validation_fraction: 0.15
+  test_fraction: 0.15
+  random_seed: 42
+
+research:
+  patient_independent_splitting: true
+  clinical_validation: false
+  treatment_label_is_diagnosis: false
+  zero_bilirubin_requires_review: true
