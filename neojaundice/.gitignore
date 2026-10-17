@@ -10,6 +10,7 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+.local-backups/
 
 # Virtual environments
 .venv/
@@ -79,6 +80,7 @@ data/external/*
 # Experiment outputs
 experiments/*
 !experiments/.gitkeep
+
 
 # MLflow artifacts
 mlflow/*
@@ -177,3 +179,15 @@ __pycache__/
 # Local experiment artifacts
 /mlruns/
 /mlflow/mlruns/
+
+# Local Python environments
+.venv/
+venv/
+
+# External and generated datasets
+data/external/
+data/processed/
+
+# Training outputs
+outputs/
+mlruns/

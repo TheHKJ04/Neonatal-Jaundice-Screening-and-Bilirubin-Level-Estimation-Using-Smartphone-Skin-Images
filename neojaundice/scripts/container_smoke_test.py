@@ -17,9 +17,9 @@ REQUIRED_PACKAGES = (
 
 
 def check_python_version() -> bool:
-    """Verify Python 3.13 is running."""
+    """Verify Python 3.12 is running."""
 
-    return sys.version_info[:2] == (3, 13)
+    return sys.version_info[:2] == (3, 12)
 
 
 def check_packages() -> dict[str, str | None]:
@@ -47,7 +47,7 @@ def main() -> int:
     print(f"Platform: {platform.system()}")
 
     if not check_python_version():
-        print("[FAILED] Expected Python 3.13")
+        print("[FAILED] Expected Python 3.12")
         return 1
 
     packages = check_packages()

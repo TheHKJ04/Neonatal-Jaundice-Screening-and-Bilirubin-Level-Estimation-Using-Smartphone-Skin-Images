@@ -100,17 +100,17 @@ def check_python_version() -> AuditResult:
 
     actual = sys.version_info[:2]
 
-    if actual == (3, 13):
+    if actual == (3, 12):
         return AuditResult(
-            name="Python 3.13",
+            name="Python 3.12",
             status="PASS",
-            details="Python 3.13 detected.",
+            details="Python 3.12 detected.",
         )
 
     return AuditResult(
-        name="Python 3.13",
+        name="Python 3.12",
         status="FAIL",
-        details=f"Expected Python 3.13, found {actual}.",
+        details=f"Expected Python 3.12, found {actual}.",
     )
 
 

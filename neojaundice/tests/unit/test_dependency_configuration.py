@@ -40,7 +40,7 @@ def test_pyproject_contains_project_metadata():
 
     assert project["version"] == "0.1.0"
 
-    assert project["requires-python"] == ">=3.13,<3.14"
+    assert project["requires-python"] == ">=3.12,<3.13"
 
 
 def test_required_dependency_groups_exist():
