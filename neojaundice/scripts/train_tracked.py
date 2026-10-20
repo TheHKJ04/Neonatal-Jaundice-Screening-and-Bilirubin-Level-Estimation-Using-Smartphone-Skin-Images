@@ -43,10 +43,14 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--exclude-zero", action="store_true")
     p.add_argument("--resume", action="store_true")
     p.add_argument(
-        "--mlflow", action="store_true", help="Track run in local MLflow file store"
+        "--mlflow",
+        action="store_true",
+        help="Enable MLflow experiment tracking",
     )
     p.add_argument(
-        "--mlflow-uri", default=None, help="Example: file:///content/.../mlruns"
+        "--mlflow-uri",
+        default=None,
+        help="MLflow tracking URI, e.g. sqlite:////content/mlflow.db",
     )
     p.add_argument("--experiment", default="neojaundice-regression")
     return p
