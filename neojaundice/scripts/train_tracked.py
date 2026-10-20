@@ -180,8 +180,12 @@ def train(a: argparse.Namespace) -> dict:
         import mlflow as mlflow_module
 
         mlflow = mlflow_module
-        if a.mlflow_uri:
-            mlflow.set_tracking_uri(a.mlflow_uri)
+        tracking_uri = (
+            a.mlflow_uri
+            or os.environ.get("MLFLOW_TRACKING_URI")
+            or f"sqlite:///{(Path.cwd() / 'mlflow.db').as_posix()}"
+        )
+        mlflow.set_tracking_uri(tracking_uri)
         mlflow.set_experiment(a.experiment)
         mlflow.start_run(run_name=a.output.name)
         mlflow.log_params(
