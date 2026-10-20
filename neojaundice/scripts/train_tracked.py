@@ -185,11 +185,21 @@ def train(a: argparse.Namespace) -> dict:
             or os.environ.get("MLFLOW_TRACKING_URI")
             or f"sqlite:///{(Path.cwd() / 'mlflow.db').as_posix()}"
         )
+        if tracking_uri.startswith("file:"):
+            raise ValueError(
+                "Legacy MLflow file tracking is not supported by "
+                "the current project configuration. "
+                "Use a SQLite tracking URI instead."
+            )
         mlflow.set_tracking_uri(tracking_uri)
         mlflow.set_experiment(a.experiment)
         mlflow.start_run(run_name=a.output.name)
         mlflow.log_params(
-            {**configuration(a), "epochs_requested": a.epochs, "patience": a.patience}
+            {
+                **configuration(a),
+                "epochs_requested": a.epochs,
+                "patience": a.patience,
+            }
         )
     try:
         for epoch in range(start_epoch, a.epochs + 1):
