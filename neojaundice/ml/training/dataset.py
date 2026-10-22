@@ -62,9 +62,15 @@ class NeoJaundiceDataset(Dataset):
         training: bool = False,
         exclude_zero: bool = False,
     ):
-        self.manifest = pd.read_csv(
-            manifest, dtype={"patient_id": str, "image_id": str}
-        )
+        if isinstance(manifest, pd.DataFrame):
+            self.manifest = manifest.copy()
+            for col in ("patient_id", "image_id"):
+                if col in self.manifest.columns:
+                    self.manifest[col] = self.manifest[col].astype(str)
+        else:
+            self.manifest = pd.read_csv(
+                manifest, dtype={"patient_id": str, "image_id": str}
+            )
         self.root = Path(image_root).resolve()
         self.task = task
         self.transform = make_transform(preprocessing, training)
