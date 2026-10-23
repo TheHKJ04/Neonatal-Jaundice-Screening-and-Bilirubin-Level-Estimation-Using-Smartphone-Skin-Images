@@ -6,21 +6,22 @@ This script never trains or tunes a model. It expects the existing project modul
 
 Outputs are created automatically under artifacts/evaluation/regression by default.
 """
+
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
 import random
-import sys
 from pathlib import Path
 from typing import Any
 
+import matplotlib
 import numpy as np
 import pandas as pd
 import torch
 from sklearn.metrics import mean_absolute_error, mean_squared_error
-import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
@@ -29,7 +30,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Evaluate a NeoJaundice regression checkpoint on the held-out test set."
     )
-    parser.add_argument("--manifest-dir", type=Path, default=Path("data/processed/neojaundice"))
+    parser.add_argument(
+        "--manifest-dir", type=Path, default=Path("data/processed/neojaundice")
+    )
     parser.add_argument(
         "--image-root",
         type=Path,
@@ -55,12 +58,12 @@ def parse_args() -> argparse.Namespace:
         help="Target column in test.csv. Used to document target semantics; dataset adapter supplies target values.",
     )
     parser.add_argument(
-        "--bootstrap-replicates", type=int, default=1000,
+        "--bootstrap-replicates",
+        type=int,
+        default=1000,
         help="Patient-level bootstrap replicates; use 0 to skip confidence intervals.",
     )
-    parser.add_argument(
-        "--device", choices=("auto", "cpu", "cuda"), default="auto"
-    )
+    parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     parser.add_argument(
         "--allow-checkpoint-metadata-mismatch",
         action="store_true",
@@ -90,8 +93,10 @@ def extract_state_dict(checkpoint_obj: Any) -> dict[str, torch.Tensor]:
     if isinstance(checkpoint_obj, dict):
         for key in ("model_state_dict", "state_dict", "model"):
             candidate = checkpoint_obj.get(key)
-            if isinstance(candidate, dict) and candidate and all(
-                isinstance(v, torch.Tensor) for v in candidate.values()
+            if (
+                isinstance(candidate, dict)
+                and candidate
+                and all(isinstance(v, torch.Tensor) for v in candidate.values())
             ):
                 return candidate
         if checkpoint_obj and all(
@@ -104,7 +109,9 @@ def extract_state_dict(checkpoint_obj: Any) -> dict[str, torch.Tensor]:
     )
 
 
-def calculate_regression_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float | int]:
+def calculate_regression_metrics(
+    y_true: np.ndarray, y_pred: np.ndarray
+) -> dict[str, float | int]:
     if len(y_true) == 0:
         raise ValueError("Cannot calculate metrics for an empty prediction set.")
     return {
@@ -126,7 +133,11 @@ def patient_aggregate(frame: pd.DataFrame) -> pd.DataFrame:
     # and average predictions to obtain one estimate per infant.
     return (
         frame.groupby("patient_id", dropna=False)
-        .agg(target=("target", "mean"), prediction=("prediction", "mean"), image_count=("prediction", "size"))
+        .agg(
+            target=("target", "mean"),
+            prediction=("prediction", "mean"),
+            image_count=("prediction", "size"),
+        )
         .reset_index()
     )
 
@@ -137,7 +148,9 @@ def bootstrap_patient_mae(
     if replicates <= 0:
         return None
     if len(patient_frame) < 2:
-        raise ValueError("At least two patients are required for bootstrap confidence intervals.")
+        raise ValueError(
+            "At least two patients are required for bootstrap confidence intervals."
+        )
     rng = np.random.default_rng(seed)
     targets = patient_frame["target"].to_numpy(dtype=float)
     predictions = patient_frame["prediction"].to_numpy(dtype=float)
@@ -250,7 +263,9 @@ def main() -> int:
         raise FileNotFoundError(f"Test split not found: {test_csv}")
     split_metadata = pd.read_csv(test_csv)
     if "patient_id" not in split_metadata.columns:
-        raise ValueError("test.csv must contain patient_id to support patient-level evaluation.")
+        raise ValueError(
+            "test.csv must contain patient_id to support patient-level evaluation."
+        )
 
     dataset = load_test_dataset(args.manifest_dir, args.image_root)
     loader = torch.utils.data.DataLoader(
@@ -278,14 +293,16 @@ def main() -> int:
                 targets.detach().cpu().numpy(),
                 outputs.detach().cpu().numpy(),
             ):
-                rows.append({
-                    "patient_id": str(pid),
-                    "image_id": str(image_id),
-                    "target": float(target),
-                    "prediction": float(prediction),
-                    "residual": float(prediction - target),
-                    "absolute_error": float(abs(prediction - target)),
-                })
+                rows.append(
+                    {
+                        "patient_id": str(pid),
+                        "image_id": str(image_id),
+                        "target": float(target),
+                        "prediction": float(prediction),
+                        "residual": float(prediction - target),
+                        "absolute_error": float(abs(prediction - target)),
+                    }
+                )
 
     if not rows:
         raise RuntimeError("The test dataloader returned zero predictions.")
@@ -311,7 +328,9 @@ def main() -> int:
             f"Target column {args.target_column!r} not found in train.csv. "
             f"Available columns: {train_frame.columns.tolist()}"
         )
-    train_targets = pd.to_numeric(train_frame[args.target_column], errors="coerce").dropna()
+    train_targets = pd.to_numeric(
+        train_frame[args.target_column], errors="coerce"
+    ).dropna()
     if train_targets.empty:
         raise ValueError("No numeric target values found in train.csv.")
     baseline_value = float(train_targets.mean())
@@ -371,29 +390,34 @@ def main() -> int:
 - Test set used for model selection: **No**
 
 ## Image-level metrics
-- Images: {image_metrics['count']}
-- MAE: {image_metrics['mae']:.4f} target units
-- RMSE: {image_metrics['rmse']:.4f} target units
-- Prediction bias (prediction − target): {image_metrics['bias_prediction_minus_target']:.4f}
+- Images: {image_metrics["count"]}
+- MAE: {image_metrics["mae"]:.4f} target units
+- RMSE: {image_metrics["rmse"]:.4f} target units
+- Prediction bias (prediction − target): {
+        image_metrics["bias_prediction_minus_target"]:.4f}
 
 ## Patient-level metrics
-- Patients: {patient_metrics['count']}
-- MAE: {patient_metrics['mae']:.4f} target units
-- RMSE: {patient_metrics['rmse']:.4f} target units
-- Prediction bias (prediction − target): {patient_metrics['bias_prediction_minus_target']:.4f}
+- Patients: {patient_metrics["count"]}
+- MAE: {patient_metrics["mae"]:.4f} target units
+- RMSE: {patient_metrics["rmse"]:.4f} target units
+- Prediction bias (prediction − target): {
+        patient_metrics["bias_prediction_minus_target"]:.4f}
 
 ## Training-mean baseline
 - Constant prediction: {baseline_value:.4f}
-- Patient-level MAE: {baseline_patient_metrics['mae']:.4f}
-- Patient-level RMSE: {baseline_patient_metrics['rmse']:.4f}
+- Patient-level MAE: {baseline_patient_metrics["mae"]:.4f}
+- Patient-level RMSE: {baseline_patient_metrics["rmse"]:.4f}
 
 ## Patient-level bootstrap interval
-{(
-    f"- 95% bootstrap CI for patient-level MAE: "
-    f"[{ci['patient_mae_ci_lower']:.4f}, {ci['patient_mae_ci_upper']:.4f}] "
-    f"({ci['replicates']} replicates)"
-    if ci else "- Not calculated."
-)}
+{
+        (
+            f"- 95% bootstrap CI for patient-level MAE: "
+            f"[{ci['patient_mae_ci_lower']:.4f}, {ci['patient_mae_ci_upper']:.4f}] "
+            f"({ci['replicates']} replicates)"
+            if ci
+            else "- Not calculated."
+        )
+    }
 
 ## Limitations
 - The target measurement semantics and units must be verified against the original dataset documentation.
@@ -403,13 +427,18 @@ def main() -> int:
     (args.output_dir / "evaluation_report.md").write_text(report, encoding="utf-8")
 
     print("\nRegression test evaluation completed.")
-    print(json.dumps({
-        "image_level": image_metrics,
-        "patient_level": patient_metrics,
-        "baseline_patient_level": baseline_patient_metrics,
-        "checkpoint_sha256": checkpoint_sha256,
-        "output_dir": str(args.output_dir.resolve()),
-    }, indent=2))
+    print(
+        json.dumps(
+            {
+                "image_level": image_metrics,
+                "patient_level": patient_metrics,
+                "baseline_patient_level": baseline_patient_metrics,
+                "checkpoint_sha256": checkpoint_sha256,
+                "output_dir": str(args.output_dir.resolve()),
+            },
+            indent=2,
+        )
+    )
     return 0
 
 

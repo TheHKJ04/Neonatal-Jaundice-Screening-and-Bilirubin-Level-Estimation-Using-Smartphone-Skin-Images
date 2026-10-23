@@ -1,4 +1,5 @@
 """Unit tests for pure metric/aggregation helpers in evaluate_test.py."""
+
 import importlib.util
 from pathlib import Path
 
@@ -33,11 +34,13 @@ def test_regression_metrics_known_error():
 
 
 def test_patient_aggregation_averages_images():
-    frame = pd.DataFrame({
-        "patient_id": ["A", "A", "B"],
-        "target": [10.0, 10.0, 12.0],
-        "prediction": [8.0, 12.0, 11.0],
-    })
+    frame = pd.DataFrame(
+        {
+            "patient_id": ["A", "A", "B"],
+            "target": [10.0, 10.0, 12.0],
+            "prediction": [8.0, 12.0, 11.0],
+        }
+    )
     result = evaluate_test.patient_aggregate(frame).sort_values("patient_id")
     assert result["patient_id"].tolist() == ["A", "B"]
     assert result["target"].tolist() == [10.0, 12.0]
@@ -51,11 +54,13 @@ def test_patient_aggregation_rejects_missing_columns():
 
 
 def test_patient_bootstrap_is_reproducible():
-    frame = pd.DataFrame({
-        "patient_id": ["A", "B", "C"],
-        "target": [10.0, 12.0, 8.0],
-        "prediction": [9.0, 14.0, 7.0],
-    })
+    frame = pd.DataFrame(
+        {
+            "patient_id": ["A", "B", "C"],
+            "target": [10.0, 12.0, 8.0],
+            "prediction": [9.0, 14.0, 7.0],
+        }
+    )
     first = evaluate_test.bootstrap_patient_mae(frame, 100, 42)
     second = evaluate_test.bootstrap_patient_mae(frame, 100, 42)
     assert first == second
@@ -63,9 +68,11 @@ def test_patient_bootstrap_is_reproducible():
 
 
 def test_zero_bootstrap_skips_interval():
-    frame = pd.DataFrame({
-        "patient_id": ["A", "B"],
-        "target": [10.0, 12.0],
-        "prediction": [9.0, 14.0],
-    })
+    frame = pd.DataFrame(
+        {
+            "patient_id": ["A", "B"],
+            "target": [10.0, 12.0],
+            "prediction": [9.0, 14.0],
+        }
+    )
     assert evaluate_test.bootstrap_patient_mae(frame, 0, 42) is None
