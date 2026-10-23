@@ -1,0 +1,14 @@
+Best epoch: 21
+Best validation loss: 1.830560178983779
+
+best_model.pt
+Size: 16336259
+SHA-256: 3cb1f89863b26c17a78c7bfb9a1e3ab7f76fc8598d74e410c743e20684f7d082
+
+last_state.pt
+Size: 48611464
+SHA-256: 925587116fa9128f44ae6b766ee24c5fe955c0b84c92762180e3944d64a5e854
+
+history.json
+Size: 11937
+SHA-256: 48b1a7ca88bba10996633c2ecfaa1518919f2baf7ec8a793b7fbc2802bef6314

@@ -62,6 +62,13 @@ data/interim/*
 data/processed/*
 data/external/*
 
+# Private datasets
+data/private/
+
+# Generated model artifacts, predictions, and evaluation outputs
+artifacts/
+
+
 # Keep directory placeholders
 !data/raw/.gitkeep
 !data/interim/.gitkeep
