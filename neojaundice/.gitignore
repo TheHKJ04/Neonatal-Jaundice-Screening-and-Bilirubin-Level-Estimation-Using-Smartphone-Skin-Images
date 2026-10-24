@@ -198,3 +198,6 @@ data/processed/
 # Training outputs
 outputs/
 mlruns/
+.env.monitoring
+
+.env.docker

@@ -1,0 +1,36 @@
+name: neojaundice-api-dev
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: neojaundice-api:local
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8001:8000"
+    environment:
+      NEOJAUNDICE_APP_ENV: development
+      NEOJAUNDICE_REGRESSION_CHECKPOINT: /app/checkpoints/regression_best_model.pt
+      NEOJAUNDICE_CLASSIFICATION_CHECKPOINT: /app/checkpoints/classification_best_model.pt
+      # Adjust names below only after checking backend/app/core/config.py.
+      # Checkpoints are mounted at /app/checkpoints, never baked into the image.
+    volumes:
+      - type: bind
+        source: ${NEOJAUNDICE_CHECKPOINT_DIR:?Set NEOJAUNDICE_CHECKPOINT_DIR in .env.docker}
+        target: /app/checkpoints
+        read_only: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    mem_limit: 4g
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=5)"]
+      interval: 30s
+      timeout: 8s
+      retries: 3
+      start_period: 90s
