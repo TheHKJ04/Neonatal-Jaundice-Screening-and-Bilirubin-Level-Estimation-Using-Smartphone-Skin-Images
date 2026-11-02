@@ -1,86 +1,39 @@
-# NeoJaundice API Documentation
+# API contract and verification
 
-## Status
+## Current frontend dependency
 
-**Planned — API endpoints are not implemented yet.**
+The frontend calls `POST /api/v1/predict` with multipart form data:
 
-## Proposed Framework
+- field: `file`
+- accepted image types in the UI: JPEG, PNG, WebP
+- UI maximum size: 10 MiB
 
-FastAPI
-
-## Proposed API Responsibilities
-
-- Validate incoming requests
-- Accept image uploads
-- Validate image formats
-- Coordinate inference
-- Return structured prediction responses
-- Record permitted metadata
-- Expose health and readiness endpoints
-
-## Proposed API Versioning
-
-```text
-/api/v1/
-```
-
-## Candidate Endpoints
-
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/health` | Service health |
-| GET | `/ready` | Service readiness |
-| POST | `/api/v1/predictions` | Submit an image for inference |
-| GET | `/api/v1/models/current` | Retrieve model metadata |
-
-These endpoints are proposed and subject to revision.
-
-## Proposed Prediction Response
+The current frontend expects the response to include:
 
 ```json
 {
-  "prediction_id": "example-id",
-  "model_version": "research-model-version",
-  "quality_status": "accepted",
-  "screening_output": null,
-  "bilirubin_estimate_mg_dl": null,
-  "status": "not_implemented"
+  "regression_prediction": 10.25,
+  "classification_prediction": 1,
+  "classification_probability": 0.82,
+  "research_only": true,
+  "message": "Research output only."
 }
 ```
 
-This is a documentation example, not an actual model response.
+This JSON is an illustrative contract example, not a measured prediction or an assertion about a specific running model. Confirm it against the current FastAPI Pydantic schema.
 
-## Validation Requirements
+## Required validation
 
-The API should validate:
+- Check that regression output is finite and the unit is documented as mg/dL.
+- Confirm whether `classification_probability` is the probability of class 1, the predicted class, or another score.
+- Confirm class-label mapping from source dataset and training code.
+- Return clear HTTP errors for invalid file type, invalid image content, oversized files, and model-not-ready states.
+- Keep a `research_only` flag and message until clinical validation and governance are completed.
 
-- File type
-- File size
-- Image dimensions
-- Decoding success
-- Image quality
-- Request metadata
-- Authentication and authorization
+## Local endpoints
 
-## Error Handling
+- Health: `GET /api/v1/health`
+- Prediction: `POST /api/v1/predict`
+- Interactive docs: `/docs` on the API host port
 
-Use structured errors with appropriate HTTP status codes.
-
-Do not expose stack traces or internal credentials.
-
-## API Documentation Generation
-
-When FastAPI is implemented, OpenAPI documentation
-will be generated from the application schemas.
-
-## Security Requirements
-
-Image uploads must be handled as untrusted input.
-
-The API must not log identifiable patient information
-or raw medical images by default.
-
-## Medical Safety
-
-Inference responses must clearly communicate model
-limitations and must not imply clinical authorization.
+Do not document routes as implemented until confirmed in the backend route definitions and a runtime request.

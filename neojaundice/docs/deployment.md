@@ -1,121 +1,33 @@
-# NeoJaundice Deployment Guide
+# Deployment runbook
 
-## Status
+## Local Docker Compose
 
-**Production deployment is not implemented.**
+The frontend is built in a Node stage and served by Nginx. Nginx proxies `/api/` to the Compose service `api:8000`; the browser uses the same origin and does not need a baked-in API URL.
 
-## 1. Current Infrastructure
+```powershell
+docker compose --env-file .env.docker -f docker-compose.api.yml -f docker-compose.frontend.yml config
+docker compose --env-file .env.docker -f docker-compose.api.yml -f docker-compose.frontend.yml up --build -d
+docker compose --env-file .env.docker -f docker-compose.api.yml -f docker-compose.frontend.yml ps
+docker compose --env-file .env.docker -f docker-compose.api.yml -f docker-compose.frontend.yml logs -f frontend api
+```
 
-The development environment currently includes:
+Frontend: `http://localhost:8080`. API host port: `http://127.0.0.1:8001`.
 
-- Python 3.13
-- Docker
-- Docker Compose
-- PostgreSQL development container
-- Container smoke test
+```powershell
+docker compose --env-file .env.docker -f docker-compose.api.yml -f docker-compose.frontend.yml down
+```
 
-## 2. Planned Services
+## API upstream override
 
-Future deployment may include:
+`NEOJAUNDICE_API_UPSTREAM` can override the default `http://api:8000` when the backend service/network name differs. The frontend and backend must share a Docker network. Do not set the browser-side `VITE_API_BASE_URL` to a private container hostname; Nginx performs the proxy.
 
-- React frontend
-- FastAPI backend
-- PostgreSQL
-- Model inference service
-- Monitoring components
+## Production hardening checklist
 
-## 3. Deployment Environments
-
-### Development
-
-Local experimentation and testing.
-
-### Staging
-
-Integration testing in a controlled environment.
-
-### Production
-
-Requires additional security, reliability,
-monitoring, and clinical governance work.
-
-## 4. Planned Container Strategy
-
-Separate containers for:
-
-- Backend
-- Frontend
-- Database
-- Monitoring
-
-A dedicated inference service may be introduced
-if scaling requirements justify it.
-
-## 5. Configuration
-
-Use environment-specific configuration.
-
-Do not bake secrets into container images.
-
-## 6. Database Migrations
-
-Alembic is planned for schema migration management.
-
-Migrations must be tested before deployment.
-
-## 7. Health Checks
-
-Services should expose:
-
-- Liveness checks
-- Readiness checks
-
-## 8. Logging
-
-Use structured application logs.
-
-Avoid logging raw medical images or identifiable
-patient information.
-
-## 9. Monitoring
-
-Planned tools:
-
-- Prometheus
-- Grafana
-
-Potential metrics:
-
-- Request latency
-- Error rates
-- Service availability
-- Model inference time
-- Image quality rejection rates
-
-## 10. Security
-
-Production deployment requires:
-
-- HTTPS
-- Authentication
-- Authorization
-- Secret management
-- Restricted database access
-- Backup and recovery procedures
-- Appropriate data retention controls
-
-## 11. Deployment Verification
-
-Future deployment checks will include:
-
-- Container health
-- Database connectivity
-- API contract tests
-- Migration checks
-- Monitoring checks
-- Security review
-
-## 12. Current Limitation
-
-The existing Docker setup is for development
-verification and is not a clinical deployment.
+- Serve behind HTTPS and a managed reverse proxy/load balancer.
+- Restrict CORS and network exposure to intended origins.
+- Use secrets management; never bake secrets into images.
+- Pin and scan base images and dependencies.
+- Add resource limits, structured logs, request IDs, rate limiting, and monitoring.
+- Decide data-retention policy before storing uploads or results; default to not retaining identifiable newborn images.
+- Validate model checkpoint provenance, startup readiness, and inference parity.
+- Do not expose the research prototype as a clinical decision tool.

@@ -1,3 +1,210 @@
+# ==========================================
+# NeoJaundice - Git Ignore Configuration
+# ==========================================
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+build/
+dist/
+.local-backups/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+.env.local
+.env.*.local
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+.idea/
+
+# Operating system
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Python testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+logs/*
+!logs/.gitkeep
+*.log
+
+# Datasets
+data/raw/*
+data/interim/*
+data/processed/*
+data/external/*
+
+# Private datasets
+data/private/
+
+# Generated model artifacts, predictions, and evaluation outputs
+artifacts/
+
+
+# Keep directory placeholders
+!data/raw/.gitkeep
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+!data/external/.gitkeep
+
+# ML model checkpoints
+*.pt
+*.pth
+*.ckpt
+*.h5
+*.hdf5
+*.onnx
+*.tflite
+
+# Experiment outputs
+experiments/*
+!experiments/.gitkeep
+
+
+# MLflow artifacts
+mlflow/*
+!mlflow/.gitkeep
+mlruns/
+mlartifacts/
+
+# DVC cache
+.dvc/cache/
+.dvc/tmp/
+
+# Node.js
+node_modules/
+frontend/dist/
+frontend/build/
+frontend/coverage/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker local overrides
+docker-compose.override.yml
+compose.override.yaml
+
+# OS-generated files
+*.swp
+*.swo
+
+# Additional dataset artifacts
+*.parquet
+*.feather
+*.npy
+*.npz
+
+# Medical imaging formats
+*.dcm
+*.dicom
+
+# Local configuration overrides
+config.local.yaml
+config.local.yml
+*.local.env
+
+# Coverage reports
+coverage.xml
+
+# Generated engineering audit reports
+docs/audits/*
+!docs/audits/.gitkeep
+
+installed-packages-local.txt
+
+# Clinical and research datasets
+data/raw/**
+data/external/**
+data/interim/**
+data/processed/**
+
+# Preserve directory placeholders
+!data/raw/.gitkeep
+!data/external/.gitkeep
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+
+# Private acquisition records
+configs/data/acquisition_approvals.yaml
+
+# Acquisition logs
+logs/dataset_acquisition.jsonl
+
+# Downloaded archives
+*.zip
+*.tar
+*.tar.gz
+*.7z
+
+# NeoJaundice private datasets and generated artifacts
+/data/raw/
+/data/interim/
+/data/processed/
+/data/external/
+
+# Python
+__pycache__/
+*.pyc
+*.py.bak
+
+# Local experiment artifacts
+/mlruns/
+/mlflow/mlruns/
+
+# Local Python environments
+.venv/
+venv/
+
+# External and generated datasets
+data/external/
+data/processed/
+
+# Training outputs
+outputs/
+mlruns/
+.env.monitoring
+
+.env.docker
+
+
 # Logs
 logs
 *.log

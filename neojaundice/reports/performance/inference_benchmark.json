@@ -1,0 +1,26 @@
+{
+  "benchmark": "neojaundice_inference",
+  "device": "cpu",
+  "checkpoint_loading_included_in_cold_start": true,
+  "image_dimensions": [
+    1,
+    3,
+    224,
+    224
+  ],
+  "warm_repetitions": 100,
+  "cold_start_latency_ms": 409.46,
+  "warm_latency_ms": {
+    "mean": 49.127,
+    "median": 50.082,
+    "p95": 54.442,
+    "minimum": 38.218,
+    "maximum": 58.384
+  },
+  "prediction": {
+    "regression_prediction": 9.753334045410156,
+    "classification_probability": 0.11334319412708282,
+    "classification_prediction": 0
+  },
+  "clinical_use": "research_only"
+}
