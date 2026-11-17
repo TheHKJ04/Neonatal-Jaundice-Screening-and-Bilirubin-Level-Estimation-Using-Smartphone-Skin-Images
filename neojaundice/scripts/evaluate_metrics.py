@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import argparse
 import json
 from pathlib import Path
@@ -24,61 +22,56 @@ from ml.evaluation.metrics import (
 def save_json(data, path):
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    with path.open("w", encoding="utf-8") as file:
+    with open(path, "w", encoding="utf-8") as file:
         json.dump(data, file, indent=4, allow_nan=False)
 
 
-def evaluate_classification(args, output_dir, reports):
+def evaluate_classification(args, output):
     if not args.classification_csv:
-        return
+        return None
 
     df = pd.read_csv(args.classification_csv)
 
-    required = [args.class_true_col, args.class_pred_col]
+    required = [
+        args.class_true,
+        args.class_pred,
+    ]
 
     if args.score_col:
         required.append(args.score_col)
 
-    if args.score_cols:
-        required.extend(args.score_cols)
-
-    missing = [col for col in required if col not in df.columns]
+    missing = [c for c in required if c not in df.columns]
 
     if missing:
         raise ValueError(f"Missing classification columns: {missing}")
 
-    df = df.dropna(subset=required).copy()
+    df = df.dropna(subset=required)
 
     scores = None
 
     if args.score_col:
-        scores = pd.to_numeric(df[args.score_col]).to_numpy()
-
-    elif args.score_cols:
-        scores = df[args.score_cols].apply(pd.to_numeric, errors="raise").to_numpy()
+        scores = pd.to_numeric(
+            df[args.score_col],
+            errors="raise",
+        ).to_numpy()
 
     result = classification_metrics(
-        y_true=df[args.class_true_col],
-        y_pred=df[args.class_pred_col],
+        df[args.class_true],
+        df[args.class_pred],
         y_score=scores,
         positive_label=args.positive_label,
     )
 
-    save_json(result, output_dir / "classification_metrics.json")
-
-    reports.update(
-        {
-            f"classification_{key}": value
-            for key, value in result.items()
-            if isinstance(value, (int, float)) or value is None
-        }
+    save_json(
+        result,
+        output / "classification_metrics.json",
     )
 
     labels = result["classes"]
 
     cm = confusion_matrix(
-        df[args.class_true_col].astype(str),
-        df[args.class_pred_col].astype(str),
+        df[args.class_true].astype(str),
+        df[args.class_pred].astype(str),
         labels=labels,
     )
 
@@ -91,138 +84,145 @@ def evaluate_classification(args, output_dir, reports):
         xticklabels=labels,
         yticklabels=labels,
     )
-    plt.xlabel("Predicted label")
-    plt.ylabel("Actual label")
+
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
     plt.title("Classification Confusion Matrix")
     plt.tight_layout()
-    plt.savefig(output_dir / "confusion_matrix.png", dpi=200)
+
+    plt.savefig(
+        output / "confusion_matrix.png",
+        dpi=200,
+    )
     plt.close()
 
-    print("\nCLASSIFICATION RESULTS")
-    print(json.dumps(result, indent=4))
+    return result
 
 
-def evaluate_regression(args, output_dir, reports):
+def evaluate_regression(args, output):
     if not args.regression_csv:
-        return
+        return None
 
     df = pd.read_csv(args.regression_csv)
 
-    required = [args.reg_true_col, args.reg_pred_col]
+    required = [
+        args.reg_true,
+        args.reg_pred,
+    ]
 
     if args.patient_col:
         required.append(args.patient_col)
 
-    missing = [col for col in required if col not in df.columns]
+    missing = [c for c in required if c not in df.columns]
 
     if missing:
         raise ValueError(f"Missing regression columns: {missing}")
 
-    df[args.reg_true_col] = pd.to_numeric(df[args.reg_true_col], errors="coerce")
-    df[args.reg_pred_col] = pd.to_numeric(df[args.reg_pred_col], errors="coerce")
-
-    df = df.dropna(subset=required).copy()
-
-    y_true = df[args.reg_true_col].to_numpy()
-    y_pred = df[args.reg_pred_col].to_numpy()
-
-    result = regression_metrics(y_true, y_pred)
-
-    if args.patient_col:
-        ci = cluster_bootstrap_mae_ci(
-            y_true,
-            y_pred,
-            df[args.patient_col].to_numpy(),
-            n_bootstrap=args.bootstrap,
-            seed=args.seed,
-        )
-        result.update(ci)
-
-    save_json(result, output_dir / "regression_metrics.json")
-
-    reports.update(
-        {
-            f"regression_{key}": value
-            for key, value in result.items()
-            if isinstance(value, (int, float)) or value is None
-        }
+    df[args.reg_true] = pd.to_numeric(
+        df[args.reg_true],
+        errors="coerce",
     )
 
-    errors = y_pred - y_true
-    averages = (y_true + y_pred) / 2
+    df[args.reg_pred] = pd.to_numeric(
+        df[args.reg_pred],
+        errors="coerce",
+    )
 
-    # Actual versus predicted
+    df = df.dropna(subset=required)
+
+    actual = df[args.reg_true].to_numpy()
+    predicted = df[args.reg_pred].to_numpy()
+
+    result = regression_metrics(actual, predicted)
+
+    if args.patient_col:
+        result.update(
+            cluster_bootstrap_mae_ci(
+                actual,
+                predicted,
+                df[args.patient_col].to_numpy(),
+                n_bootstrap=args.bootstrap,
+                seed=args.seed,
+            )
+        )
+
+    save_json(
+        result,
+        output / "regression_metrics.json",
+    )
+
+    errors = predicted - actual
+    means = (predicted + actual) / 2
+
+    # Actual vs predicted
     plt.figure(figsize=(7, 6))
-    plt.scatter(y_true, y_pred, alpha=0.6)
+    plt.scatter(actual, predicted, alpha=0.6)
 
-    lower = min(y_true.min(), y_pred.min())
-    upper = max(y_true.max(), y_pred.max())
+    lower = min(actual.min(), predicted.min())
+    upper = max(actual.max(), predicted.max())
 
-    plt.plot([lower, upper], [lower, upper], "r--")
-    plt.xlabel("Actual bilirubin (mg/dL)")
-    plt.ylabel("Predicted bilirubin (mg/dL)")
-    plt.title("Actual vs Predicted Bilirubin")
+    plt.plot(
+        [lower, upper],
+        [lower, upper],
+        "r--",
+    )
+
+    plt.xlabel("Actual Bilirubin (mg/dL)")
+    plt.ylabel("Predicted Bilirubin (mg/dL)")
+    plt.title("Actual vs Predicted")
+
     plt.tight_layout()
-    plt.savefig(output_dir / "actual_vs_predicted.png", dpi=200)
+    plt.savefig(output / "actual_vs_predicted.png", dpi=200)
     plt.close()
 
     # Residual distribution
     plt.figure(figsize=(7, 6))
     sns.histplot(errors, kde=True)
     plt.axvline(0, color="red", linestyle="--")
+
     plt.xlabel("Prediction Error (mg/dL)")
-    plt.title("Regression Residual Distribution")
+    plt.title("Residual Distribution")
+
     plt.tight_layout()
-    plt.savefig(output_dir / "residual_distribution.png", dpi=200)
+    plt.savefig(output / "residual_distribution.png", dpi=200)
     plt.close()
 
-    # Bland-Altman plot
+    # Bland-Altman
     bias = np.mean(errors)
-    sd = np.std(errors, ddof=1) if len(errors) >= 2 else 0
+    sd = np.std(errors, ddof=1) if len(errors) > 1 else 0
 
     plt.figure(figsize=(7, 6))
-    plt.scatter(averages, errors, alpha=0.6)
-    plt.axhline(bias, color="red", linestyle="--", label="Mean bias")
-    plt.axhline(
-        bias + 1.96 * sd,
-        color="green",
-        linestyle="--",
-        label="Upper agreement limit",
-    )
-    plt.axhline(
-        bias - 1.96 * sd,
-        color="green",
-        linestyle="--",
-        label="Lower agreement limit",
-    )
-    plt.xlabel("Mean of Actual and Predicted (mg/dL)")
-    plt.ylabel("Predicted - Actual (mg/dL)")
-    plt.title("Bland-Altman Agreement Plot")
-    plt.legend()
+    plt.scatter(means, errors, alpha=0.6)
+
+    plt.axhline(bias, color="red", linestyle="--")
+    plt.axhline(bias + 1.96 * sd, color="green", linestyle="--")
+    plt.axhline(bias - 1.96 * sd, color="green", linestyle="--")
+
+    plt.xlabel("Mean of Actual and Predicted")
+    plt.ylabel("Predicted - Actual")
+    plt.title("Bland-Altman Analysis")
+
     plt.tight_layout()
-    plt.savefig(output_dir / "bland_altman.png", dpi=200)
+    plt.savefig(output / "bland_altman.png", dpi=200)
     plt.close()
 
-    print("\nREGRESSION RESULTS")
-    print(json.dumps(result, indent=4))
+    return result
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="NeoJaundice classification and regression evaluation."
-    )
+    parser = argparse.ArgumentParser()
 
     parser.add_argument("--classification-csv", type=Path)
     parser.add_argument("--regression-csv", type=Path)
 
-    parser.add_argument("--class-true-col", default="actual_label")
-    parser.add_argument("--class-pred-col", default="predicted_label")
+    parser.add_argument("--class-true", default="actual_label")
+    parser.add_argument("--class-pred", default="predicted_label")
     parser.add_argument("--score-col")
-    parser.add_argument("--score-cols", nargs="+")
+
     parser.add_argument("--positive-label", default="1")
 
-    parser.add_argument("--reg-true-col", default="actual_bilirubin")
-    parser.add_argument("--reg-pred-col", default="predicted_bilirubin")
+    parser.add_argument("--reg-true", default="actual_bilirubin")
+    parser.add_argument("--reg-pred", default="predicted_bilirubin")
 
     parser.add_argument("--patient-col", default="patient_id")
 
@@ -232,7 +232,7 @@ def main():
         default=Path("artifacts/evaluation/final"),
     )
 
-    parser.add_argument("--bootstrap", type=int, default=1000)
+    parser.add_argument("--bootstrap", type=int, default=2000)
     parser.add_argument("--seed", type=int, default=42)
 
     args = parser.parse_args()
@@ -240,24 +240,45 @@ def main():
     if not args.classification_csv and not args.regression_csv:
         parser.error("Provide at least one prediction CSV.")
 
-    if args.bootstrap < 100:
-        parser.error("Use at least 100 bootstrap iterations.")
-
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    reports = {}
+    classification = evaluate_classification(args, args.output_dir)
 
-    evaluate_classification(args, args.output_dir, reports)
-    evaluate_regression(args, args.output_dir, reports)
+    regression = evaluate_regression(args, args.output_dir)
 
-    save_json(reports, args.output_dir / "summary.json")
+    summary = {
+        "classification": classification,
+        "regression": regression,
+        "seed": args.seed,
+    }
 
-    pd.DataFrame(
-        [{"metric": key, "value": value} for key, value in reports.items()]
-    ).to_csv(args.output_dir / "summary.csv", index=False)
+    save_json(
+        summary,
+        args.output_dir / "summary.json",
+    )
 
-    print("\nEvaluation completed.")
-    print(f"Reports saved at: {args.output_dir.resolve()}")
+    rows = []
+
+    for task, result in summary.items():
+        if isinstance(result, dict):
+            for metric, value in result.items():
+                if isinstance(value, (int, float)) or value is None:
+                    rows.append(
+                        {
+                            "task": task,
+                            "metric": metric,
+                            "value": value,
+                        }
+                    )
+
+    pd.DataFrame(rows).to_csv(
+        args.output_dir / "summary.csv",
+        index=False,
+    )
+
+    print("\nEVALUATION COMPLETED")
+    print(json.dumps(summary, indent=4))
+    print("Output:", args.output_dir.resolve())
 
 
 if __name__ == "__main__":

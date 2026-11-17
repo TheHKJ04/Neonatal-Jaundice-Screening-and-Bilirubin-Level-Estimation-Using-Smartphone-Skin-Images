@@ -1,9 +1,4 @@
-#!/usr/bin/env python3
-"""Evaluate a frozen NeoJaundice binary classifier on the held-out test set.
-
-This script reports dataset-label prediction performance only. It does not establish
-clinical validity for the source `treatment_label` field.
-"""
+"""Evaluate a frozen NeoJaundice classifier on test data using a preselected threshold."""
 
 from __future__ import annotations
 
@@ -12,11 +7,15 @@ import hashlib
 import json
 import sys
 from pathlib import Path
-from typing import Any
 
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
+from sklearn.calibration import calibration_curve
 from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
@@ -25,32 +24,35 @@ from sklearn.metrics import (
     confusion_matrix,
     f1_score,
     log_loss,
+    precision_recall_curve,
     precision_score,
     recall_score,
     roc_auc_score,
+    roc_curve,
 )
 from torch.utils.data import DataLoader
 
 
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+def sha256(path):
+    h = hashlib.sha256()
+    with Path(path).open("rb") as f:
+        for b in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(b)
+    return h.hexdigest()
 
 
-def binary_metrics(y_true, probabilities, threshold: float = 0.5) -> dict[str, Any]:
-    y = np.asarray(y_true, dtype=np.int64).reshape(-1)
-    p = np.asarray(probabilities, dtype=np.float64).reshape(-1)
-    if len(y) != len(p) or len(y) == 0:
-        raise ValueError("y_true and probabilities must have the same nonzero length")
+def binary_metrics(y_true, probabilities, threshold):
+    y = np.asarray(y_true, dtype=int).reshape(-1)
+    p = np.asarray(probabilities, dtype=float).reshape(-1)
+    if len(y) == 0 or len(y) != len(p):
+        raise ValueError("Labels/probabilities must have equal nonzero lengths.")
+    if not set(np.unique(y)).issubset({0, 1}):
+        raise ValueError("Labels must be binary.")
     if not np.isfinite(p).all() or ((p < 0) | (p > 1)).any():
-        raise ValueError("Probabilities must be finite and in [0, 1]")
-    pred = (p >= threshold).astype(np.int64)
+        raise ValueError("Probabilities must be finite in [0,1].")
+    pred = (p >= threshold).astype(int)
     tn, fp, fn, tp = confusion_matrix(y, pred, labels=[0, 1]).ravel()
-    specificity = float(tn / (tn + fp)) if (tn + fp) else None
-    result = {
+    return {
         "count": int(len(y)),
         "positive_count": int(y.sum()),
         "negative_count": int(len(y) - y.sum()),
@@ -58,7 +60,7 @@ def binary_metrics(y_true, probabilities, threshold: float = 0.5) -> dict[str, A
         "accuracy": float(accuracy_score(y, pred)),
         "precision": float(precision_score(y, pred, zero_division=0)),
         "recall_sensitivity": float(recall_score(y, pred, zero_division=0)),
-        "specificity": specificity,
+        "specificity": float(tn / (tn + fp)) if tn + fp else None,
         "f1": float(f1_score(y, pred, zero_division=0)),
         "confusion_matrix": {
             "tn": int(tn),
@@ -73,22 +75,14 @@ def binary_metrics(y_true, probabilities, threshold: float = 0.5) -> dict[str, A
         "brier_score": float(brier_score_loss(y, p)),
         "log_loss": float(log_loss(y, np.clip(p, 1e-7, 1 - 1e-7), labels=[0, 1])),
     }
-    return result
 
 
-def bootstrap_patient_ci(
-    patient_df: pd.DataFrame, n_bootstrap: int = 2000, seed: int = 42
-) -> dict[str, Any]:
-    """Percentile bootstrap over independent patients, not correlated image rows."""
-    if patient_df.empty or patient_df["target"].nunique() < 2:
-        return {
-            "method": "patient-level percentile bootstrap",
-            "replicates": 0,
-            "note": "Not computed: patient table is empty or contains only one class.",
-        }
+def bootstrap_patient_ci(df, n, seed, threshold):
+    if n <= 0:
+        return {"requested_replicates": 0, "note": "Bootstrap disabled."}
     rng = np.random.default_rng(seed)
-    rows = patient_df.reset_index(drop=True)
-    metrics: dict[str, list[float]] = {
+    rows = df.reset_index(drop=True)
+    metrics = {
         k: []
         for k in (
             "accuracy",
@@ -99,307 +93,308 @@ def bootstrap_patient_ci(
             "roc_auc",
         )
     }
-    n = len(rows)
-    for _ in range(n_bootstrap):
-        idx = rng.integers(0, n, size=n)
-        sample = rows.iloc[idx]
-        y = sample["target"].to_numpy(dtype=int)
-        p = sample["probability"].to_numpy(dtype=float)
+    for _ in range(n):
+        sample = rows.iloc[rng.integers(0, len(rows), size=len(rows))]
+        y = sample.target.to_numpy(int)
+        p = sample.probability.to_numpy(float)
         if len(np.unique(y)) < 2:
             continue
-        m = binary_metrics(y, p, threshold=0.5)
-        for key in metrics:
-            val = m.get(key)
-            if val is not None and np.isfinite(val):
-                metrics[key].append(float(val))
-    intervals = {}
-    for key, values in metrics.items():
-        intervals[key] = (
-            {
-                "lower_95": float(np.percentile(values, 2.5)),
-                "upper_95": float(np.percentile(values, 97.5)),
-                "valid_replicates": len(values),
-            }
-            if values
-            else None
-        )
+        m = binary_metrics(y, p, threshold)
+        for k in metrics:
+            if m[k] is not None and np.isfinite(m[k]):
+                metrics[k].append(m[k])
     return {
-        "method": "patient-level percentile bootstrap; threshold fixed at 0.5",
-        "requested_replicates": n_bootstrap,
+        "method": f"patient-level percentile bootstrap; fixed threshold={threshold:.6f}",
+        "requested_replicates": n,
+        "valid_replicates": min((len(v) for v in metrics.values()), default=0),
         "seed": seed,
-        "intervals": intervals,
+        "intervals": {
+            k: (
+                {
+                    "lower_95": float(np.percentile(v, 2.5)),
+                    "upper_95": float(np.percentile(v, 97.5)),
+                    "valid_replicates": len(v),
+                }
+                if v
+                else None
+            )
+            for k, v in metrics.items()
+        },
     }
 
 
-def load_state_dict(
-    checkpoint_path: Path, device: torch.device
-) -> dict[str, torch.Tensor]:
+def load_model(path, device):
+    from ml.training.model import build_model
+
     try:
-        obj = torch.load(checkpoint_path, map_location=device, weights_only=False)
-    except TypeError:  # compatibility with older torch versions
-        obj = torch.load(checkpoint_path, map_location=device)
-    if isinstance(obj, dict):
-        for key in ("model_state_dict", "state_dict", "model"):
-            if key in obj and isinstance(obj[key], dict):
-                obj = obj[key]
-                break
-    if not isinstance(obj, dict) or not obj:
-        raise ValueError(f"Could not locate a state dictionary in {checkpoint_path}")
-    # Handle DataParallel checkpoints.
-    if all(str(k).startswith("module.") for k in obj):
-        obj = {str(k)[7:]: v for k, v in obj.items()}
-    return obj
+        obj = torch.load(path, map_location="cpu", weights_only=True)
+    except TypeError:
+        obj = torch.load(path, map_location="cpu")
+    if not isinstance(obj, dict):
+        raise ValueError("Invalid checkpoint.")
+    state = next(
+        (
+            obj[k]
+            for k in ("model_state_dict", "state_dict", "model")
+            if isinstance(obj.get(k), dict)
+            and obj[k]
+            and all(isinstance(v, torch.Tensor) for v in obj[k].values())
+        ),
+        None,
+    )
+    if state is None and obj and all(isinstance(v, torch.Tensor) for v in obj.values()):
+        state = obj
+    if state is None:
+        raise ValueError("No state_dict found.")
+    if all(str(k).startswith("module.") for k in state):
+        state = {str(k)[7:]: v for k, v in state.items()}
+    model = build_model(pretrained=False)
+    model.load_state_dict(state, strict=True)
+    return model.to(device).eval()
 
 
-def parse_args() -> argparse.Namespace:
+def save_plots(patient, threshold, out):
+    plotdir = out / "plots"
+    plotdir.mkdir(parents=True, exist_ok=True)
+    y = patient.target.to_numpy(int)
+    p = patient.probability.to_numpy(float)
+    pred = (p >= threshold).astype(int)
+    fpr, tpr, _ = roc_curve(y, p)
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.plot(fpr, tpr, label=f"AUC={roc_auc_score(y, p):.3f}")
+    ax.plot([0, 1], [0, 1], "--")
+    ax.set(
+        xlabel="False positive rate",
+        ylabel="Sensitivity",
+        title="Test ROC — patient level",
+    )
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(plotdir / "roc_curve.png", dpi=180)
+    plt.close(fig)
+    prec, rec, _ = precision_recall_curve(y, p)
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.plot(rec, prec, label=f"AP={average_precision_score(y, p):.3f}")
+    ax.set(
+        xlabel="Recall / sensitivity",
+        ylabel="Precision",
+        title="Test precision–recall — patient level",
+    )
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(plotdir / "precision_recall_curve.png", dpi=180)
+    plt.close(fig)
+    cm = confusion_matrix(y, pred, labels=[0, 1])
+    fig, ax = plt.subplots(figsize=(5, 5))
+    im = ax.imshow(cm)
+    ax.set_xticks([0, 1], labels=["Predicted 0", "Predicted 1"])
+    ax.set_yticks([0, 1], labels=["Actual 0", "Actual 1"])
+    for (i, j), v in np.ndenumerate(cm):
+        ax.text(j, i, str(v), ha="center", va="center")
+    ax.set_title(f"Test confusion matrix (threshold={threshold:.3f})")
+    fig.colorbar(im, ax=ax)
+    fig.tight_layout()
+    fig.savefig(plotdir / "confusion_matrix.png", dpi=180)
+    plt.close(fig)
+    frac, mean = calibration_curve(y, p, n_bins=8, strategy="quantile")
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.plot(mean, frac, marker="o")
+    ax.plot([0, 1], [0, 1], "--")
+    ax.set(
+        xlabel="Mean predicted probability",
+        ylabel="Observed positive fraction",
+        title="Test calibration — patient level",
+    )
+    fig.tight_layout()
+    fig.savefig(plotdir / "calibration_curve.png", dpi=180)
+    plt.close(fig)
+
+
+def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--project-root", default=".")
-    p.add_argument("--manifest-dir", default="data/processed/manifests")
-    p.add_argument(
-        "--test-manifest",
-        default=None,
-        help="Explicit test CSV path; otherwise auto-detect common names.",
-    )
+    p.add_argument("--test-manifest", required=True)
     p.add_argument("--image-root", required=True)
+    p.add_argument("--checkpoint", required=True)
     p.add_argument(
-        "--checkpoint",
-        default="artifacts/checkpoints/classification_treatment_seed42/best_model.pt",
+        "--threshold-file",
+        required=True,
+        help="selected_threshold.json created from validation only",
     )
-    p.add_argument("--output-dir", default="artifacts/evaluation/classification")
+    p.add_argument("--output-dir", default="artifacts/evaluation/classification_final")
+    p.add_argument(
+        "--preprocessing", choices=("resize", "letterbox", "augment"), default="augment"
+    )
     p.add_argument("--batch-size", type=int, default=32)
-    p.add_argument("--workers", type=int, default=2)
-    p.add_argument(
-        "--threshold",
-        type=float,
-        default=0.5,
-        help="Must be fixed using validation only before test evaluation.",
-    )
+    p.add_argument("--workers", type=int, default=0)
     p.add_argument("--bootstrap-replicates", type=int, default=2000)
     p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--preprocessing", choices=("resize", "letterbox"), default="resize")
-    return p.parse_args()
+    a = p.parse_args()
+    root = Path(a.project_root).resolve()
 
+    def resolve(v):
+        x = Path(v).expanduser()
+        return x if x.is_absolute() else root / x
 
-def resolve_test_manifest(root: Path, manifest_dir: Path, explicit: str | None) -> Path:
-    if explicit:
-        path = Path(explicit).expanduser()
-        if not path.is_absolute():
-            path = root / path
-        if not path.is_file():
-            raise FileNotFoundError(f"Test manifest not found: {path}")
-        return path.resolve()
-    candidates = [
-        manifest_dir / name
-        for name in (
-            "test.csv",
-            "test_manifest.csv",
-            "test_manifest.parquet.csv",
-            "test_split.csv",
-        )
-    ]
-    for path in candidates:
-        if path.is_file():
-            return path.resolve()
-    raise FileNotFoundError(
-        "Could not auto-detect test manifest. Pass --test-manifest /path/to/test.csv. Checked: "
-        + ", ".join(map(str, candidates))
+    manifest, images, ckpt, threshold_file, out = map(
+        resolve,
+        (a.test_manifest, a.image_root, a.checkpoint, a.threshold_file, a.output_dir),
     )
-
-
-def main() -> int:
-    args = parse_args()
-    root = Path(args.project_root).expanduser().resolve()
-    manifest_dir = Path(args.manifest_dir).expanduser()
-    if not manifest_dir.is_absolute():
-        manifest_dir = root / manifest_dir
-    checkpoint = Path(args.checkpoint).expanduser()
-    if not checkpoint.is_absolute():
-        checkpoint = root / checkpoint
-    output_dir = Path(args.output_dir).expanduser()
-    if not output_dir.is_absolute():
-        output_dir = root / output_dir
-    image_root = Path(args.image_root).expanduser().resolve()
-    if not checkpoint.is_file():
-        raise FileNotFoundError(f"Checkpoint not found: {checkpoint}")
-    if not image_root.is_dir():
-        raise FileNotFoundError(f"Image root not found: {image_root}")
-    if not 0 < args.threshold < 1:
-        raise ValueError("--threshold must be between 0 and 1")
-    test_manifest = resolve_test_manifest(root, manifest_dir, args.test_manifest)
-    frame = pd.read_csv(test_manifest)
-    required = {"patient_id", "image_id", "treatment_label"}
-    missing = sorted(required - set(frame.columns))
-    if missing:
+    for x in (manifest, images, ckpt, threshold_file):
+        if not x.exists():
+            raise FileNotFoundError(x)
+    selected = json.loads(threshold_file.read_text(encoding="utf-8"))
+    threshold = float(selected["threshold"])
+    if selected.get("checkpoint_sha256") != sha256(ckpt):
         raise ValueError(
-            f"Test manifest missing required columns: {missing}. Columns found: {list(frame.columns)}"
+            "Threshold file checkpoint SHA-256 does not match selected classifier."
         )
-    labels = pd.to_numeric(frame["treatment_label"], errors="coerce")
+    if selected.get("selection_unit") != "patient":
+        raise ValueError("Threshold must have been selected at patient level.")
+    if not 0 < threshold < 1:
+        raise ValueError("Invalid threshold in threshold file.")
+    frame = pd.read_csv(manifest)
+    required = {"patient_id", "image_id", "treatment_label"}
+    if missing := required - set(frame.columns):
+        raise ValueError(f"Test CSV missing {sorted(missing)}")
+    labels = pd.to_numeric(frame.treatment_label, errors="coerce")
     if labels.isna().any() or not set(labels.unique()).issubset({0, 1}):
-        raise ValueError("treatment_label must contain only binary values 0 and 1")
+        raise ValueError("treatment_label must be binary 0/1.")
     frame["treatment_label"] = labels.astype(int)
-    # Keep test data untouched: this script never trains or selects a threshold.
+    consistency = frame.groupby("patient_id").treatment_label.nunique()
+    if (consistency > 1).any():
+        raise ValueError("Inconsistent treatment labels within test patients.")
     sys.path.insert(0, str(root))
     from ml.training.dataset import NeoJaundiceDataset
-    from ml.training.model import build_model
 
     dataset = NeoJaundiceDataset(
         frame,
-        image_root=str(image_root),
+        image_root=str(images),
         task="classification",
-        preprocessing=args.preprocessing,
+        preprocessing=a.preprocessing,
         training=False,
     )
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = load_model(ckpt, device)
     loader = DataLoader(
         dataset,
-        batch_size=args.batch_size,
+        batch_size=a.batch_size,
         shuffle=False,
-        num_workers=args.workers,
-        pin_memory=torch.cuda.is_available(),
+        num_workers=a.workers,
+        pin_memory=device.type == "cuda",
     )
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = build_model(pretrained=False).to(device)
-    state = load_state_dict(checkpoint, device)
-    model.load_state_dict(state, strict=True)
-    model.eval()
-    probs, targets, patient_ids, image_ids = [], [], [], []
-    with torch.no_grad():
+    rows = []
+    with torch.inference_mode():
         for batch in loader:
-            # Dataset returns a dictionary containing image, target and IDs.
-            images = batch["image"]
-            target = batch["target"]
-            patients = batch["patient_id"]
-            images_id = batch["image_id"]
-            logits = model(images.to(device)).reshape(-1)
-            batch_probs = torch.sigmoid(logits).cpu().numpy()
-            probs.extend(batch_probs.tolist())
-            targets.extend(
-                torch.as_tensor(target).reshape(-1).cpu().numpy().astype(int).tolist()
+            probs = (
+                torch.sigmoid(model(batch["image"].to(device)).reshape(-1))
+                .cpu()
+                .numpy()
             )
-            patient_ids.extend([str(x) for x in patients])
-            image_ids.extend([str(x) for x in images_id])
-    if len(probs) != len(frame):
-        raise RuntimeError(
-            f"Dataset yielded {len(probs)} records but manifest has {len(frame)} rows"
-        )
-    predictions = pd.DataFrame(
-        {
-            "image_id": image_ids,
-            "patient_id": patient_ids,
-            "target": targets,
-            "probability": probs,
-        }
+            targets = torch.as_tensor(batch["target"]).reshape(-1).cpu().numpy()
+            for pid, iid, y, prob in zip(
+                batch["patient_id"], batch["image_id"], targets, probs
+            ):
+                rows.append(
+                    {
+                        "patient_id": str(pid),
+                        "image_id": str(iid),
+                        "target": int(y),
+                        "probability": float(prob),
+                    }
+                )
+    image = pd.DataFrame(rows)
+    if len(image) != len(frame):
+        raise RuntimeError("Prediction count differs from test manifest.")
+    patient = image.groupby("patient_id", as_index=False).agg(
+        target=("target", "first"),
+        probability=("probability", "mean"),
+        image_count=("image_id", "size"),
     )
-    predictions["prediction"] = (predictions["probability"] >= args.threshold).astype(
-        int
-    )
-    image_metrics = binary_metrics(
-        predictions["target"], predictions["probability"], args.threshold
-    )
-    # Patient-level target must be consistent across a patient's image rows.
-    patient_rows = []
-    inconsistent = []
-    for pid, group in predictions.groupby("patient_id", sort=True):
-        target_values = group["target"].unique()
-        if len(target_values) != 1:
-            inconsistent.append(str(pid))
-            continue
-        patient_rows.append(
-            {
-                "patient_id": str(pid),
-                "target": int(target_values[0]),
-                "probability": float(group["probability"].mean()),
-                "image_count": int(len(group)),
-            }
-        )
-    patient_df = pd.DataFrame(patient_rows)
-    if patient_df.empty:
-        raise ValueError(
-            "No patients had consistent labels; cannot compute patient-level metrics"
-        )
-    patient_metrics = binary_metrics(
-        patient_df["target"], patient_df["probability"], args.threshold
-    )
-    patient_ci = bootstrap_patient_ci(patient_df, args.bootstrap_replicates, args.seed)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    predictions.to_csv(output_dir / "test_predictions.csv", index=False)
-    patient_df["prediction"] = (patient_df["probability"] >= args.threshold).astype(int)
-    patient_df.to_csv(output_dir / "patient_predictions.csv", index=False)
+    if patient.target.nunique() != 2:
+        raise ValueError("Test set must contain both classes for ROC/PR analysis.")
+    image["prediction"] = (image.probability >= threshold).astype(int)
+    patient["prediction"] = (patient.probability >= threshold).astype(int)
+    im = binary_metrics(image.target, image.probability, threshold)
+    pm = binary_metrics(patient.target, patient.probability, threshold)
+    ci = bootstrap_patient_ci(patient, a.bootstrap_replicates, a.seed, threshold)
+    out.mkdir(parents=True, exist_ok=True)
+    image.to_csv(out / "test_predictions.csv", index=False)
+    patient.to_csv(out / "patient_predictions.csv", index=False)
+    save_plots(patient, threshold, out)
     report = {
-        "phase": "7.6",
         "task": "binary dataset-label classification",
+        "evaluation_split": "test",
         "target_column": "treatment_label",
-        "target_semantics": "Unverified; results must not be interpreted as clinical diagnosis or treatment recommendation.",
-        "test_manifest": str(test_manifest),
-        "test_rows": int(len(frame)),
-        "unique_patients_in_manifest": int(frame["patient_id"].nunique()),
-        "patients_evaluated": int(len(patient_df)),
-        "patients_excluded_for_inconsistent_labels": inconsistent,
-        "threshold": float(args.threshold),
-        "threshold_policy": "Fixed before test evaluation; do not tune on test set.",
+        "target_semantics": "Unverified; not a clinical diagnosis or treatment recommendation.",
+        "test_manifest": str(manifest),
+        "image_count": len(image),
+        "patient_count": len(patient),
+        "threshold": threshold,
+        "threshold_policy": selected,
         "device": str(device),
-        "preprocessing": args.preprocessing,
-        "checkpoint": str(checkpoint.resolve()),
-        "checkpoint_sha256": sha256_file(checkpoint),
-        "image_level": image_metrics,
-        "patient_level": patient_metrics,
-        "patient_level_bootstrap_95ci": patient_ci,
-        "classification_report_image_level": classification_report(
-            predictions["target"],
-            predictions["prediction"],
+        "preprocessing": a.preprocessing,
+        "checkpoint": str(ckpt),
+        "checkpoint_sha256": sha256(ckpt),
+        "image_level": im,
+        "patient_level": pm,
+        "patient_level_bootstrap_95ci": ci,
+        "classification_report_patient_level": classification_report(
+            patient.target,
+            patient.prediction,
             labels=[0, 1],
             output_dict=True,
             zero_division=0,
         ),
-        "output_dir": str(output_dir.resolve()),
+        "limitations": [
+            "Threshold selected using validation patients only; test data did not select threshold.",
+            "Threshold selection criterion is statistical and not clinically validated.",
+            "Dataset target semantics are unverified; results do not establish clinical screening performance.",
+        ],
     }
-    (output_dir / "metrics.json").write_text(
+    (out / "metrics.json").write_text(
         json.dumps(report, indent=2, allow_nan=False) + "\n", encoding="utf-8"
     )
-    md = [
-        "# NeoJaundice Phase 7.6 — Classification Test Evaluation",
-        "",
-        "> **Research-only result.** `treatment_label` semantics have not been verified. Do not interpret these metrics as clinical screening accuracy or treatment guidance.",
-        "",
-        f"- Test manifest: `{test_manifest}`",
-        f"- Test image rows: {len(frame)}",
-        f"- Patients evaluated: {len(patient_df)}",
-        f"- Fixed threshold: `{args.threshold:.3f}`",
-        f"- Checkpoint SHA-256: `{report['checkpoint_sha256']}`",
-        "",
-        "## Image-level metrics",
-        "",
-        "```json",
-        json.dumps(image_metrics, indent=2),
-        "```",
-        "",
-        "## Patient-level metrics",
-        "",
-        "```json",
-        json.dumps(patient_metrics, indent=2),
-        "```",
-        "",
-        "## Patient-level bootstrap confidence intervals",
-        "",
-        "```json",
-        json.dumps(patient_ci, indent=2),
-        "```",
-        "",
-        "## Interpretation limits",
-        "",
-        "- Patient-level results aggregate image probabilities by mean; labels must be consistent within each patient.",
-        "- The threshold is fixed at 0.5; it must not be tuned using test outcomes.",
-        "- Confidence intervals use a percentile bootstrap over patients, not images.",
-        "- Performance against an unverified dataset label does not establish clinical validity.",
-        "",
-    ]
-    (output_dir / "evaluation_report.md").write_text("\n".join(md), encoding="utf-8")
+    md = f"""# NeoJaundice Classification Test Evaluation
+
+> Research-only. `treatment_label` semantics are unverified; do not interpret this as clinical screening accuracy.
+
+- Checkpoint SHA-256: `{report["checkpoint_sha256"]}`
+- Threshold: `{threshold:.6f}` (selected using validation patients; method: {selected.get("selection_method")})
+- Preprocessing: `{a.preprocessing}`
+- Images: {len(image)}
+- Patients: {len(patient)}
+
+## Patient-level metrics
+
+```json
+{json.dumps(pm, indent=2)}
+```
+
+## Image-level metrics
+
+```json
+{json.dumps(im, indent=2)}
+```
+
+## Patient-level bootstrap confidence intervals
+
+```json
+{json.dumps(ci, indent=2)}
+```
+
+Plots are in `plots/`: ROC, precision–recall, confusion matrix and calibration.
+The threshold is an exploratory statistical operating point, not a clinically approved screening threshold.
+"""
+    (out / "evaluation_report.md").write_text(md, encoding="utf-8")
     print(
         json.dumps(
             {
-                "image_level": image_metrics,
-                "patient_level": patient_metrics,
-                "patient_level_bootstrap_95ci": patient_ci,
-                "output_dir": str(output_dir.resolve()),
+                "threshold": threshold,
+                "image_level": im,
+                "patient_level": pm,
+                "bootstrap": ci,
+                "output_dir": str(out.resolve()),
             },
             indent=2,
         )

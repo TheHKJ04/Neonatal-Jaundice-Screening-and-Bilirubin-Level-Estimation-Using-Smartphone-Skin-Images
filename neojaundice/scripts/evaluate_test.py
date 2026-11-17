@@ -1,10 +1,7 @@
-"""Evaluate a selected NeoJaundice regression checkpoint on the held-out test split.
+"""Evaluate a frozen NeoJaundice regression checkpoint on the held-out test split.
 
-This script never trains or tunes a model. It expects the existing project modules:
-- ml.training.dataset.NeoJaundiceDataset
-- ml.training.model.build_model
-
-Outputs are created automatically under artifacts/evaluation/regression by default.
+No training or model/threshold tuning occurs here. Patient is the primary
+statistical unit; image-level results are reported as secondary analyses.
 """
 
 from __future__ import annotations
@@ -17,67 +14,52 @@ from pathlib import Path
 from typing import Any
 
 import matplotlib
-import numpy as np
-import pandas as pd
-import torch
-from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import torch
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Evaluate a NeoJaundice regression checkpoint on the held-out test set."
-    )
-    parser.add_argument(
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument(
         "--manifest-dir", type=Path, default=Path("data/processed/neojaundice")
     )
-    parser.add_argument(
+    p.add_argument(
         "--image-root",
         type=Path,
         default=Path("data/external/neojaundice/extracted/NeoJaundice"),
     )
-    parser.add_argument(
-        "--checkpoint",
-        type=Path,
-        required=True,
-        help="Path to best_model.pt for the selected regression run.",
+    p.add_argument("--checkpoint", type=Path, required=True)
+    p.add_argument(
+        "--output-dir", type=Path, default=Path("artifacts/evaluation/regression_final")
     )
-    parser.add_argument(
-        "--output-dir",
-        type=Path,
-        default=Path("artifacts/evaluation/regression"),
+    p.add_argument(
+        "--preprocessing", choices=("resize", "letterbox", "augment"), default="augment"
     )
-    parser.add_argument("--batch-size", type=int, default=16)
-    parser.add_argument("--workers", type=int, default=0)
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument(
-        "--target-column",
-        default="blood(mg/dL)",
-        help="Target column in test.csv. Used to document target semantics; dataset adapter supplies target values.",
+    p.add_argument("--batch-size", type=int, default=16)
+    p.add_argument("--workers", type=int, default=0)
+    p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--target-column", default="bilirubin_value")
+    p.add_argument(
+        "--target-unit",
+        default="unverified",
+        help="Set to mg/dL only after verifying source documentation.",
     )
-    parser.add_argument(
-        "--bootstrap-replicates",
-        type=int,
-        default=1000,
-        help="Patient-level bootstrap replicates; use 0 to skip confidence intervals.",
-    )
-    parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
-    parser.add_argument(
-        "--allow-checkpoint-metadata-mismatch",
-        action="store_true",
-        help="Allow checkpoint wrappers with metadata that differs from expected. Use only after inspecting the file.",
-    )
-    return parser.parse_args()
+    p.add_argument("--bootstrap-replicates", type=int, default=2000)
+    p.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
+    return p.parse_args()
 
 
 def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def set_seed(seed: int) -> None:
@@ -88,353 +70,372 @@ def set_seed(seed: int) -> None:
         torch.cuda.manual_seed_all(seed)
 
 
-def extract_state_dict(checkpoint_obj: Any) -> dict[str, torch.Tensor]:
-    """Support common checkpoint layouts without silently accepting unknown layouts."""
-    if isinstance(checkpoint_obj, dict):
-        for key in ("model_state_dict", "state_dict", "model"):
-            candidate = checkpoint_obj.get(key)
-            if (
-                isinstance(candidate, dict)
-                and candidate
-                and all(isinstance(v, torch.Tensor) for v in candidate.values())
-            ):
-                return candidate
-        if checkpoint_obj and all(
-            isinstance(v, torch.Tensor) for v in checkpoint_obj.values()
-        ):
-            return checkpoint_obj
-    raise ValueError(
-        "Unsupported checkpoint structure. Expected a state_dict or a dictionary "
-        "containing model_state_dict/state_dict. Inspect best_model.pt before proceeding."
-    )
-
-
-def calculate_regression_metrics(
-    y_true: np.ndarray, y_pred: np.ndarray
-) -> dict[str, float | int]:
-    if len(y_true) == 0:
-        raise ValueError("Cannot calculate metrics for an empty prediction set.")
-    return {
-        "count": int(len(y_true)),
-        "mae": float(mean_absolute_error(y_true, y_pred)),
-        "rmse": float(np.sqrt(mean_squared_error(y_true, y_pred))),
-        "mean_target": float(np.mean(y_true)),
-        "mean_prediction": float(np.mean(y_pred)),
-        "bias_prediction_minus_target": float(np.mean(y_pred - y_true)),
-    }
-
-
-def patient_aggregate(frame: pd.DataFrame) -> pd.DataFrame:
-    required = {"patient_id", "target", "prediction"}
-    missing = required - set(frame.columns)
-    if missing:
-        raise ValueError(f"Prediction frame is missing columns: {sorted(missing)}")
-    # All images for one infant should have the same target. Average labels defensively
-    # and average predictions to obtain one estimate per infant.
-    return (
-        frame.groupby("patient_id", dropna=False)
-        .agg(
-            target=("target", "mean"),
-            prediction=("prediction", "mean"),
-            image_count=("prediction", "size"),
-        )
-        .reset_index()
-    )
-
-
-def bootstrap_patient_mae(
-    patient_frame: pd.DataFrame, replicates: int, seed: int
-) -> dict[str, float | int] | None:
-    if replicates <= 0:
-        return None
-    if len(patient_frame) < 2:
-        raise ValueError(
-            "At least two patients are required for bootstrap confidence intervals."
-        )
-    rng = np.random.default_rng(seed)
-    targets = patient_frame["target"].to_numpy(dtype=float)
-    predictions = patient_frame["prediction"].to_numpy(dtype=float)
-    values = np.empty(replicates, dtype=float)
-    n = len(patient_frame)
-    for i in range(replicates):
-        indices = rng.integers(0, n, size=n)
-        values[i] = np.mean(np.abs(predictions[indices] - targets[indices]))
-    return {
-        "replicates": int(replicates),
-        "confidence_level": 0.95,
-        "patient_mae_ci_lower": float(np.quantile(values, 0.025)),
-        "patient_mae_ci_upper": float(np.quantile(values, 0.975)),
-    }
-
-
-def load_test_dataset(manifest_dir: Path, image_root: Path):
-    # Import from the existing project so preprocessing remains consistent with training.
-    from ml.training.dataset import NeoJaundiceDataset
-
-    test_manifest = manifest_dir / "test.csv"
-    if not test_manifest.exists():
-        raise FileNotFoundError(f"Test manifest not found: {test_manifest}")
-    dataset = NeoJaundiceDataset(
-        manifest=test_manifest,
-        image_root=image_root,
-        task="regression",
-        preprocessing="resize",
-        training=False,
-        exclude_zero=False,
-    )
-    return dataset
-
-
-def load_model(checkpoint_path: Path, device: torch.device):
+def load_checkpoint(path: Path, device: torch.device):
     from ml.training.model import build_model
 
-    if not checkpoint_path.exists():
-        raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
-
-    # Checkpoints created by this project are trusted local artifacts.
+    if not path.is_file():
+        raise FileNotFoundError(path)
     try:
-        checkpoint_obj = torch.load(
-            checkpoint_path, map_location="cpu", weights_only=True
-        )
-    except TypeError:  # Compatibility with older PyTorch versions
-        checkpoint_obj = torch.load(checkpoint_path, map_location="cpu")
-
-    state_dict = extract_state_dict(checkpoint_obj)
+        obj = torch.load(path, map_location="cpu", weights_only=True)
+    except TypeError:
+        # Only for older PyTorch versions that do not support weights_only.
+        obj = torch.load(path, map_location="cpu")
+    if not isinstance(obj, dict):
+        raise ValueError("Checkpoint must be a dictionary.")
+    state = next(
+        (
+            obj[k]
+            for k in ("model_state_dict", "state_dict", "model")
+            if isinstance(obj.get(k), dict)
+            and obj[k]
+            and all(isinstance(v, torch.Tensor) for v in obj[k].values())
+        ),
+        None,
+    )
+    if state is None and obj and all(isinstance(v, torch.Tensor) for v in obj.values()):
+        state = obj
+    if state is None:
+        raise ValueError("No supported model state_dict found in checkpoint.")
     model = build_model(pretrained=False)
-    incompatible = model.load_state_dict(state_dict, strict=False)
-    if incompatible.missing_keys or incompatible.unexpected_keys:
-        raise RuntimeError(
-            "Checkpoint/model architecture mismatch.\n"
-            f"Missing keys: {incompatible.missing_keys[:20]}\n"
-            f"Unexpected keys: {incompatible.unexpected_keys[:20]}\n"
-            "Do not continue until the checkpoint architecture is verified."
+    model.load_state_dict(state, strict=True)
+    return model.to(device).eval()
+
+
+def patient_aggregate(df: pd.DataFrame) -> pd.DataFrame:
+    counts = df.groupby("patient_id")["target"].nunique()
+    bad = counts[counts > 1]
+    if not bad.empty:
+        raise ValueError(
+            f"Inconsistent regression targets for patients: {bad.index.astype(str).tolist()[:20]}"
         )
-    model.to(device)
-    model.eval()
-    return model
+    return df.groupby("patient_id", as_index=False).agg(
+        target=("target", "first"),
+        prediction=("prediction", "mean"),
+        image_count=("prediction", "size"),
+    )
 
 
-def make_plots(predictions: pd.DataFrame, output_dir: Path) -> None:
-    actual = predictions["target"].to_numpy(dtype=float)
-    predicted = predictions["prediction"].to_numpy(dtype=float)
-    low = float(min(actual.min(), predicted.min()))
-    high = float(max(actual.max(), predicted.max()))
+def regression_metrics(y: np.ndarray, pred: np.ndarray) -> dict[str, Any]:
+    y = np.asarray(y, dtype=float)
+    pred = np.asarray(pred, dtype=float)
+    err = pred - y
+    abs_err = np.abs(err)
+    if len(y) == 0:
+        raise ValueError("Cannot evaluate an empty array.")
+    return {
+        "count": int(len(y)),
+        "mae": float(mean_absolute_error(y, pred)),
+        "median_absolute_error": float(np.median(abs_err)),
+        "rmse": float(np.sqrt(mean_squared_error(y, pred))),
+        "r2": float(r2_score(y, pred)) if len(y) >= 2 and np.var(y) > 0 else None,
+        "mean_target": float(np.mean(y)),
+        "mean_prediction": float(np.mean(pred)),
+        "bias_prediction_minus_target": float(np.mean(err)),
+        "within_1_target_unit_pct": float(np.mean(abs_err <= 1.0) * 100),
+        "within_2_target_units_pct": float(np.mean(abs_err <= 2.0) * 100),
+    }
 
-    plt.figure(figsize=(7, 6))
-    plt.scatter(actual, predicted, alpha=0.65)
-    plt.plot([low, high], [low, high], linestyle="--")
-    plt.xlabel("Actual target")
-    plt.ylabel("Predicted target")
-    plt.title("NeoJaundice Regression: Test Predictions")
-    plt.tight_layout()
-    plt.savefig(output_dir / "predicted_vs_actual.png", dpi=160)
-    plt.close()
 
-    residuals = predicted - actual
-    plt.figure(figsize=(7, 5))
-    plt.scatter(predicted, residuals, alpha=0.65)
-    plt.axhline(0.0, linestyle="--")
-    plt.xlabel("Predicted target")
-    plt.ylabel("Residual (prediction - actual)")
-    plt.title("NeoJaundice Regression: Test Residuals")
-    plt.tight_layout()
-    plt.savefig(output_dir / "residual_plot.png", dpi=160)
-    plt.close()
+def bootstrap_mae(patient_df: pd.DataFrame, n: int, seed: int):
+    if n <= 0:
+        return None
+    rng = np.random.default_rng(seed)
+    y = patient_df.target.to_numpy(float)
+    p = patient_df.prediction.to_numpy(float)
+    vals = np.empty(n)
+    for i in range(n):
+        idx = rng.integers(0, len(y), size=len(y))
+        vals[i] = np.mean(np.abs(p[idx] - y[idx]))
+    return {
+        "replicates": int(n),
+        "confidence_level": 0.95,
+        "mae_ci_lower": float(np.quantile(vals, 0.025)),
+        "mae_ci_upper": float(np.quantile(vals, 0.975)),
+    }
+
+
+def save_regression_plots(df: pd.DataFrame, out: Path, unit: str) -> None:
+    plot_dir = out / "plots"
+    plot_dir.mkdir(parents=True, exist_ok=True)
+    y = df.target.to_numpy(float)
+    pred = df.prediction.to_numpy(float)
+    residual = pred - y
+    lo, hi = float(min(y.min(), pred.min())), float(max(y.max(), pred.max()))
+    pad = max((hi - lo) * 0.04, 0.1)
+
+    fig, ax = plt.subplots(figsize=(7, 6))
+    ax.scatter(y, pred, alpha=0.65, edgecolors="none")
+    ax.plot([lo - pad, hi + pad], [lo - pad, hi + pad], "--", label="Identity")
+    ax.set(
+        xlabel=f"Reference ({unit})",
+        ylabel=f"Prediction ({unit})",
+        title="Test set: predicted vs reference",
+    )
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(plot_dir / "predicted_vs_actual.png", dpi=180)
+    plt.close(fig)
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.scatter(pred, residual, alpha=0.65, edgecolors="none")
+    ax.axhline(0, linestyle="--")
+    ax.set(
+        xlabel=f"Predicted ({unit})",
+        ylabel=f"Residual ({unit})",
+        title="Test set: residuals vs prediction",
+    )
+    fig.tight_layout()
+    fig.savefig(plot_dir / "residual_plot.png", dpi=180)
+    plt.close(fig)
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.hist(residual, bins="auto", edgecolor="black", alpha=0.8)
+    ax.axvline(0, linestyle="--")
+    ax.set(
+        xlabel=f"Residual ({unit})", ylabel="Image count", title="Residual distribution"
+    )
+    fig.tight_layout()
+    fig.savefig(plot_dir / "residual_distribution.png", dpi=180)
+    plt.close(fig)
+
+    mean_pair = (y + pred) / 2
+    bias = float(np.mean(residual))
+    sd = float(np.std(residual, ddof=1)) if len(residual) > 1 else 0.0
+    lower, upper = bias - 1.96 * sd, bias + 1.96 * sd
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.scatter(mean_pair, residual, alpha=0.65, edgecolors="none")
+    ax.axhline(bias, linestyle="-", label=f"Bias = {bias:.3f}")
+    ax.axhline(lower, linestyle="--", label=f"Lower LoA = {lower:.3f}")
+    ax.axhline(upper, linestyle="--", label=f"Upper LoA = {upper:.3f}")
+    ax.set(
+        xlabel=f"Mean of reference and prediction ({unit})",
+        ylabel=f"Prediction − reference ({unit})",
+        title="Bland–Altman agreement plot",
+    )
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(plot_dir / "bland_altman.png", dpi=180)
+    plt.close(fig)
+
+    # Descriptive bins; do not interpret as clinical risk bands.
+    bins = [-np.inf, 5, 10, 15, 20, np.inf]
+    labels = ["≤5", "(5,10]", "(10,15]", "(15,20]", ">20"]
+    ranges = pd.cut(y, bins=bins, labels=labels)
+    grouped = pd.DataFrame(
+        {"range": ranges, "absolute_error": np.abs(residual)}
+    ).dropna()
+    fig, ax = plt.subplots(figsize=(8, 5))
+    data = [
+        grouped.loc[grouped.range == label, "absolute_error"].to_numpy()
+        for label in labels
+    ]
+    ax.boxplot(data, tick_labels=labels, showfliers=True)
+    ax.set(
+        xlabel="Reference target range (dataset units)",
+        ylabel="Absolute error (dataset units)",
+        title="Absolute error by reference-value range",
+    )
+    fig.tight_layout()
+    fig.savefig(plot_dir / "error_by_target_range.png", dpi=180)
+    plt.close(fig)
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    tolerances = [0.5, 1, 1.5, 2, 3, 4, 5]
+    percentages = [np.mean(np.abs(residual) <= t) * 100 for t in tolerances]
+    ax.plot(tolerances, percentages, marker="o")
+    ax.set(
+        xlabel="Absolute-error tolerance (dataset units)",
+        ylabel="Images within tolerance (%)",
+        ylim=(0, 100),
+        title="Error tolerance profile",
+    )
+    ax.grid(alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(plot_dir / "error_tolerance.png", dpi=180)
+    plt.close(fig)
 
 
 def main() -> int:
     args = parse_args()
-    if args.batch_size < 1:
-        raise ValueError("--batch-size must be >= 1.")
-    if args.bootstrap_replicates < 0:
-        raise ValueError("--bootstrap-replicates must be >= 0.")
-    set_seed(args.seed)
-
-    if args.device == "auto":
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    else:
-        if args.device == "cuda" and not torch.cuda.is_available():
-            raise RuntimeError("CUDA was requested but is not available.")
-        device = torch.device(args.device)
-
-    args.output_dir.mkdir(parents=True, exist_ok=True)
-    test_csv = args.manifest_dir / "test.csv"
-    if not test_csv.exists():
-        raise FileNotFoundError(f"Test split not found: {test_csv}")
-    split_metadata = pd.read_csv(test_csv)
-    if "patient_id" not in split_metadata.columns:
+    if args.batch_size < 1 or args.workers < 0 or args.bootstrap_replicates < 0:
         raise ValueError(
-            "test.csv must contain patient_id to support patient-level evaluation."
+            "batch-size must be positive; workers/bootstrap replicates cannot be negative."
         )
+    set_seed(args.seed)
+    device = (
+        torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if args.device == "auto"
+        else torch.device(args.device)
+    )
+    if device.type == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError("CUDA requested but unavailable.")
+    manifest = args.manifest_dir / "test.csv"
+    if not manifest.is_file():
+        raise FileNotFoundError(manifest)
+    if not args.image_root.is_dir():
+        raise FileNotFoundError(args.image_root)
+    if not args.checkpoint.is_file():
+        raise FileNotFoundError(args.checkpoint)
 
-    dataset = load_test_dataset(args.manifest_dir, args.image_root)
+    from ml.training.dataset import NeoJaundiceDataset
+
+    dataset = NeoJaundiceDataset(
+        manifest=manifest,
+        image_root=args.image_root,
+        task="regression",
+        preprocessing=args.preprocessing,
+        training=False,
+        exclude_zero=False,
+    )
     loader = torch.utils.data.DataLoader(
         dataset,
         batch_size=args.batch_size,
         shuffle=False,
         num_workers=args.workers,
-        pin_memory=(device.type == "cuda"),
+        pin_memory=device.type == "cuda",
     )
-    model = load_model(args.checkpoint, device)
-
-    rows: list[dict[str, Any]] = []
+    model = load_checkpoint(args.checkpoint, device)
+    rows = []
     with torch.inference_mode():
         for batch in loader:
-            images = batch["image"].to(device)
-            outputs = model(images).reshape(-1)
-            targets = batch["target"].reshape(-1)
-            if outputs.shape[0] != targets.shape[0]:
-                raise RuntimeError("Prediction and target batch lengths do not match.")
-            patient_ids = batch["patient_id"]
-            image_ids = batch.get("image_id", [""] * len(patient_ids))
-            for pid, image_id, target, prediction in zip(
-                patient_ids,
-                image_ids,
-                targets.detach().cpu().numpy(),
-                outputs.detach().cpu().numpy(),
+            output = model(batch["image"].to(device)).reshape(-1).cpu().numpy()
+            target = batch["target"].reshape(-1).cpu().numpy()
+            if len(output) != len(target):
+                raise RuntimeError("Prediction/target batch size mismatch.")
+            for pid, iid, y, pred in zip(
+                batch["patient_id"], batch["image_id"], target, output
             ):
                 rows.append(
                     {
                         "patient_id": str(pid),
-                        "image_id": str(image_id),
-                        "target": float(target),
-                        "prediction": float(prediction),
-                        "residual": float(prediction - target),
-                        "absolute_error": float(abs(prediction - target)),
+                        "image_id": str(iid),
+                        "target": float(y),
+                        "prediction": float(pred),
+                        "residual": float(pred - y),
+                        "absolute_error": float(abs(pred - y)),
                     }
                 )
-
     if not rows:
-        raise RuntimeError("The test dataloader returned zero predictions.")
-
-    predictions = pd.DataFrame(rows)
-    patient_predictions = patient_aggregate(predictions)
-
-    image_metrics = calculate_regression_metrics(
-        predictions["target"].to_numpy(), predictions["prediction"].to_numpy()
+        raise RuntimeError("No test predictions were produced.")
+    image_df = pd.DataFrame(rows)
+    patient_df = patient_aggregate(image_df)
+    image_metrics = regression_metrics(
+        image_df.target.to_numpy(), image_df.prediction.to_numpy()
     )
-    patient_metrics = calculate_regression_metrics(
-        patient_predictions["target"].to_numpy(),
-        patient_predictions["prediction"].to_numpy(),
+    patient_metrics = regression_metrics(
+        patient_df.target.to_numpy(), patient_df.prediction.to_numpy()
     )
 
-    # Training-set mean is a simple baseline. It is derived only from train.csv.
     train_csv = args.manifest_dir / "train.csv"
-    if not train_csv.exists():
-        raise FileNotFoundError(f"Training manifest not found: {train_csv}")
-    train_frame = pd.read_csv(train_csv)
-    if args.target_column not in train_frame.columns:
-        raise ValueError(
-            f"Target column {args.target_column!r} not found in train.csv. "
-            f"Available columns: {train_frame.columns.tolist()}"
-        )
-    train_targets = pd.to_numeric(
-        train_frame[args.target_column], errors="coerce"
+    train = pd.read_csv(train_csv)
+    if args.target_column not in train:
+        raise ValueError(f"{args.target_column!r} missing from {train_csv}")
+    train_values = pd.to_numeric(train[args.target_column], errors="coerce")
+    train_pairs = pd.DataFrame(
+        {"patient_id": train["patient_id"], "target": train_values}
     ).dropna()
-    if train_targets.empty:
-        raise ValueError("No numeric target values found in train.csv.")
-    baseline_value = float(train_targets.mean())
-    baseline_patient_metrics = calculate_regression_metrics(
-        patient_predictions["target"].to_numpy(),
-        np.full(len(patient_predictions), baseline_value, dtype=float),
+    train_consistency = train_pairs.groupby("patient_id").target.nunique()
+    if (train_consistency > 1).any():
+        raise ValueError(
+            "Training target differs across images for one or more patients; baseline not calculated."
+        )
+    baseline_value = float(train_pairs.drop_duplicates("patient_id").target.mean())
+    baseline_metrics = regression_metrics(
+        patient_df.target.to_numpy(), np.full(len(patient_df), baseline_value)
     )
+    ci = bootstrap_mae(patient_df, args.bootstrap_replicates, args.seed)
 
-    ci = bootstrap_patient_mae(
-        patient_predictions, args.bootstrap_replicates, args.seed
-    )
-    checkpoint_sha256 = sha256_file(args.checkpoint)
-
-    predictions.to_csv(args.output_dir / "test_predictions.csv", index=False)
-    patient_predictions.to_csv(args.output_dir / "patient_predictions.csv", index=False)
-    make_plots(predictions, args.output_dir)
-
+    out = args.output_dir
+    out.mkdir(parents=True, exist_ok=True)
+    image_df.to_csv(out / "test_predictions.csv", index=False)
+    patient_df.to_csv(out / "patient_predictions.csv", index=False)
+    save_regression_plots(image_df, out, args.target_unit)
+    digest = sha256_file(args.checkpoint)
     result = {
         "task": "regression",
         "evaluation_split": "test",
         "test_set_used_for_model_selection": False,
         "checkpoint_path": str(args.checkpoint.resolve()),
-        "checkpoint_sha256": checkpoint_sha256,
+        "checkpoint_sha256": digest,
         "device": str(device),
         "seed": args.seed,
-        "preprocessing": "resize",
+        "preprocessing": args.preprocessing,
         "target_column": args.target_column,
-        "target_measurement_semantics": (
-            "Not independently verified; interpret target units according to source dataset documentation."
-        ),
+        "target_unit": args.target_unit,
         "image_level": image_metrics,
         "patient_level": patient_metrics,
-        "training_mean_baseline_patient_level": {
+        "training_patient_mean_baseline": {
             "constant_prediction": baseline_value,
-            **baseline_patient_metrics,
+            **baseline_metrics,
         },
         "patient_level_mae_bootstrap_ci": ci,
         "notes": [
-            "No training or hyperparameter tuning was performed by this script.",
-            "Patient-level metrics aggregate predictions by patient_id.",
-            "Bootstrap resampling is performed at the patient level.",
-            "This research evaluation is not clinical validation.",
+            "Patient-level bootstrap resamples patients, not images.",
+            "Error tolerances are descriptive, not clinical acceptance criteria.",
+            "Bland–Altman limits describe agreement in this sample only.",
+            "Research evaluation is not clinical validation.",
         ],
     }
-
-    (args.output_dir / "metrics.json").write_text(
-        json.dumps(result, indent=2), encoding="utf-8"
+    (out / "metrics.json").write_text(
+        json.dumps(result, indent=2, allow_nan=False) + "\n", encoding="utf-8"
     )
-
     report = f"""# NeoJaundice Regression Test Evaluation
 
 ## Model identity
 - Checkpoint: `{args.checkpoint.resolve()}`
-- SHA-256: `{checkpoint_sha256}`
+- SHA-256: `{digest}`
 - Device: `{device}`
-- Preprocessing: `resize`
+- Preprocessing: `{args.preprocessing}` (deterministic inference; training augmentations disabled)
+- Target column: `{args.target_column}`
+- Target unit: `{args.target_unit}`
 - Test set used for model selection: **No**
 
 ## Image-level metrics
 - Images: {image_metrics["count"]}
-- MAE: {image_metrics["mae"]:.4f} target units
-- RMSE: {image_metrics["rmse"]:.4f} target units
-- Prediction bias (prediction − target): {
-        image_metrics["bias_prediction_minus_target"]:.4f}
+- MAE: {image_metrics["mae"]:.4f}
+- Median absolute error: {image_metrics["median_absolute_error"]:.4f}
+- RMSE: {image_metrics["rmse"]:.4f}
+- R²: {image_metrics["r2"]}
+- Bias (prediction − reference): {image_metrics["bias_prediction_minus_target"]:.4f}
+- Within ±1 target unit: {image_metrics["within_1_target_unit_pct"]:.2f}%
+- Within ±2 target units: {image_metrics["within_2_target_units_pct"]:.2f}%
 
 ## Patient-level metrics
 - Patients: {patient_metrics["count"]}
-- MAE: {patient_metrics["mae"]:.4f} target units
-- RMSE: {patient_metrics["rmse"]:.4f} target units
-- Prediction bias (prediction − target): {
-        patient_metrics["bias_prediction_minus_target"]:.4f}
+- MAE: {patient_metrics["mae"]:.4f}
+- Median absolute error: {patient_metrics["median_absolute_error"]:.4f}
+- RMSE: {patient_metrics["rmse"]:.4f}
+- R²: {patient_metrics["r2"]}
+- Bias: {patient_metrics["bias_prediction_minus_target"]:.4f}
+- Within ±1 target unit: {patient_metrics["within_1_target_unit_pct"]:.2f}%
+- Within ±2 target units: {patient_metrics["within_2_target_units_pct"]:.2f}%
 
-## Training-mean baseline
+## Training-patient-mean baseline
 - Constant prediction: {baseline_value:.4f}
-- Patient-level MAE: {baseline_patient_metrics["mae"]:.4f}
-- Patient-level RMSE: {baseline_patient_metrics["rmse"]:.4f}
+- Patient-level MAE: {baseline_metrics["mae"]:.4f}
+- Patient-level RMSE: {baseline_metrics["rmse"]:.4f}
 
 ## Patient-level bootstrap interval
-{
-        (
-            f"- 95% bootstrap CI for patient-level MAE: "
-            f"[{ci['patient_mae_ci_lower']:.4f}, {ci['patient_mae_ci_upper']:.4f}] "
-            f"({ci['replicates']} replicates)"
-            if ci
-            else "- Not calculated."
-        )
-    }
+{f"- 95% CI for patient-level MAE: [{ci['mae_ci_lower']:.4f}, {ci['mae_ci_upper']:.4f}] ({ci['replicates']} replicates)" if ci else "- Not calculated."}
+
+## Plots
+See `plots/` for predicted-vs-reference, residual, residual-distribution, Bland–Altman, error-by-range and error-tolerance plots.
 
 ## Limitations
-- The target measurement semantics and units must be verified against the original dataset documentation.
-- Results describe performance on this dataset split and do not establish clinical validity.
-- Do not use these results to make treatment decisions.
+- Confirm target semantics and units from original dataset documentation.
+- Error bands are descriptive and are not clinical thresholds.
+- Results on this split do not establish clinical validity or treatment safety.
 """
-    (args.output_dir / "evaluation_report.md").write_text(report, encoding="utf-8")
-
-    print("\nRegression test evaluation completed.")
+    (out / "evaluation_report.md").write_text(report, encoding="utf-8")
     print(
         json.dumps(
             {
                 "image_level": image_metrics,
                 "patient_level": patient_metrics,
-                "baseline_patient_level": baseline_patient_metrics,
-                "checkpoint_sha256": checkpoint_sha256,
-                "output_dir": str(args.output_dir.resolve()),
+                "baseline_patient_level": baseline_metrics,
+                "bootstrap_ci": ci,
+                "checkpoint_sha256": digest,
+                "output_dir": str(out.resolve()),
             },
             indent=2,
         )
