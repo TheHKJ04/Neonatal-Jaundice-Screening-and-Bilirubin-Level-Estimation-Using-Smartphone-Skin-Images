@@ -1,0 +1,13 @@
+evaluation:
+  seed: 42
+  bootstrap_iterations: 2000
+
+  classification:
+    positive_label: "1"
+    threshold: 0.5
+
+  regression:
+    target_unit: "mg/dL"
+
+  output:
+    directory: "artifacts/evaluation"

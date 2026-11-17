@@ -1,3 +1,7 @@
+﻿
+default_language_version:
+  python: python3.12
+
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.0
@@ -8,26 +12,48 @@ repos:
 
       - id: ruff-format
 
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+  - repo: local
     hooks:
       - id: trailing-whitespace
+        name: trailing whitespace
+        entry: neojaundice/.venv/Scripts/python.exe neojaundice/scripts/pre_commit_hook_runner.py pre_commit_hooks.trailing_whitespace_fixer
+        language: system
+        types: [text]
 
       - id: end-of-file-fixer
+        name: end of file fixer
+        entry: neojaundice/.venv/Scripts/python.exe neojaundice/scripts/pre_commit_hook_runner.py pre_commit_hooks.end_of_file_fixer
+        language: system
+        types: [text]
 
       - id: check-yaml
-        args:
-          - --unsafe
+        name: check yaml
+        entry: neojaundice/.venv/Scripts/python.exe neojaundice/scripts/pre_commit_hook_runner.py pre_commit_hooks.check_yaml
+        language: system
+        types: [yaml]
+        args: [--unsafe]
 
       - id: check-toml
-
-      - id: check-json
-        exclude: ^frontend/tsconfig\.(app|node)\.json$
+        name: check toml
+        entry: neojaundice/.venv/Scripts/python.exe neojaundice/scripts/pre_commit_hook_runner.py pre_commit_hooks.check_toml
+        language: system
+        types: [toml]
 
       - id: check-merge-conflict
+        name: check merge conflict
+        entry: neojaundice/.venv/Scripts/python.exe neojaundice/scripts/pre_commit_hook_runner.py pre_commit_hooks.check_merge_conflict
+        language: system
+        types: [text]
 
       - id: detect-private-key
+        name: detect private key
+        entry: neojaundice/.venv/Scripts/python.exe neojaundice/scripts/pre_commit_hook_runner.py pre_commit_hooks.detect_private_key
+        language: system
+        types: [text]
 
       - id: check-added-large-files
-        args:
-          - --maxkb=1024
+        name: check added large files
+        entry: neojaundice/.venv/Scripts/python.exe neojaundice/scripts/pre_commit_hook_runner.py pre_commit_hooks.check_added_large_files
+        language: system
+        types: [file]
+        args: [--maxkb=1024]
